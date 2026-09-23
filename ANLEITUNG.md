@@ -13,6 +13,11 @@
 
 Änderungen sind sofort im Shop sichtbar – kein neues Hochladen nötig.
 
+## Mehrere Fotos pro Produkt
+Im Produkt-Editor können bis zu 4 Fotos hinzugefügt werden (auch mehrere auf einmal).
+Das erste Foto ist das Titelbild – mit ★ wird ein anderes Foto zum Titelbild, mit ✕ entfernt.
+Im Shop kann man auf der Produktkarte durch die Fotos wischen (am Computer: Pfeile).
+
 ## Farben pro Produkt
 Im Produkt-Editor bei „Wie viele Farben hat das Teil?“ 1–4 wählen.
 Bei mehreren Farben können die Teile benannt werden (z. B. Körper, Augen) –

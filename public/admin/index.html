@@ -97,12 +97,18 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
 }
 .sheet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
 .sheet-head h2{margin:0;font-size:1.15rem}
-.photo-pick{position:relative;display:grid;place-items:center;aspect-ratio:4/3;border-radius:var(--r-md);border:1px dashed var(--line-strong);background:var(--plate-2);overflow:hidden;cursor:pointer;margin-bottom:8px}
-.photo-pick img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.photo-pick .ph{text-align:center;color:var(--ink-soft);font-size:.92rem;padding:16px}
-.photo-pick .ph svg{width:34px;height:34px;display:block;margin:0 auto 8px;color:var(--filament)}
+.photos{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:8px}
+.photo{position:relative;aspect-ratio:4/3;border-radius:var(--r-md);background:var(--plate-2);overflow:hidden;border:1px solid var(--line)}
+.photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.photo .badge{position:absolute;left:6px;top:6px;font-size:.7rem;padding:2px 7px;border-radius:99px;background:rgba(3,5,6,.72);color:var(--filament)}
+.photo .ctl{position:absolute;right:6px;bottom:6px;display:flex;gap:6px}
+.photo .ctl button{width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;border:1px solid var(--line-strong);background:rgba(3,5,6,.72);color:var(--ink);cursor:pointer;font-size:.85rem}
+.photo-pick{position:relative;display:grid;place-items:center;aspect-ratio:4/3;border-radius:var(--r-md);border:1px dashed var(--line-strong);background:var(--plate-2);overflow:hidden;cursor:pointer}
+.photo-pick .ph{text-align:center;color:var(--ink-soft);font-size:.85rem;padding:10px}
+.photo-pick .ph svg{width:30px;height:30px;display:block;margin:0 auto 6px;color:var(--filament)}
 .photo-pick input{position:absolute;inset:0;opacity:0;cursor:pointer}
-.photo-row{display:flex;gap:8px;justify-content:space-between;align-items:center;margin-bottom:16px;min-height:38px}
+.photos.empty-set{grid-template-columns:1fr}
+.photo-row{display:flex;gap:8px;justify-content:space-between;align-items:center;margin-bottom:16px;min-height:24px}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .switch{display:flex;align-items:center;gap:10px;margin:4px 0 18px;cursor:pointer;user-select:none}
 .switch input{width:22px;height:22px;accent-color:var(--filament)}
@@ -237,17 +243,9 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
     <button class="btn btn-ghost icon-btn" type="button" id="sheetClose" aria-label="Schließen">✕</button>
   </div>
 
-  <label class="photo-pick" id="photoPick">
-    <img id="photoPreview" alt="" hidden>
-    <div class="ph" id="photoPh">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
-      Foto aufnehmen oder auswählen
-    </div>
-    <input type="file" id="photoInput" accept="image/*">
-  </label>
+  <div class="photos" id="photos"></div>
   <div class="photo-row">
-    <span class="hint" style="margin:0" id="photoHint">Wird automatisch verkleinert.</span>
-    <button class="btn btn-ghost btn-sm" type="button" id="photoRemove" hidden>Foto entfernen</button>
+    <span class="hint" style="margin:0" id="photoHint">Bis zu 4 Fotos – das erste ist das Titelbild.</span>
   </div>
 
   <label class="field">
@@ -330,8 +328,8 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
   var pw = '';
   var products = [];
   var editIndex = -1;       // -1 = neues Produkt
-  var pendingPhoto = null;  // verkleinertes Foto (Blob), noch nicht hochgeladen
-  var photoState = null;    // aktuelle Bild-URL im Formular (oder null)
+  var photos = [];          // Fotos im Formular: { url, blob } – blob = noch nicht hochgeladen
+  var MAX_IMAGES = 4;
   var busy = false;
   var filaments = [];
   var filEditIndex = -1;
@@ -400,7 +398,8 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
   }
 
   function thumbHTML(p){
-    if(p.image) return '<img src="' + encodeURI(p.image) + '" alt="">';
+    var src = imagesOf(p)[0];
+    if(src) return '<img src="' + encodeURI(src) + '" alt="">';
     return '<svg viewBox="-8 -8 116 116" aria-hidden="true" style="opacity:.35"><use href="#pb-mark"/></svg>';
   }
 
@@ -421,6 +420,7 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
         '<div class="meta"><b></b><div class="sub"><span class="mono"></span>' +
           (p.visible === false ? '<span class="tag">ausgeblendet</span>' : '') +
           ((p.parts || []).length > 1 ? '<span class="tag" style="color:var(--filament);border-color:var(--filament-line);background:var(--filament-soft)">' + p.parts.length + ' Farben</span>' : '') +
+          (imagesOf(p).length > 1 ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">' + imagesOf(p).length + ' Fotos</span>' : '') +
           (!p.image && p.icon ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">noch kein Foto</span>' : '') +
         '</div></div>' +
         '<div class="item-actions">' +
@@ -467,11 +467,38 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
   }
 
   /* ---------- Editor ---------- */
-  function setPhoto(url){
-    photoState = url;
-    var img = $('photoPreview');
-    if(url){ img.src = url; img.hidden = false; $('photoPh').hidden = true; $('photoRemove').hidden = false; }
-    else { img.removeAttribute('src'); img.hidden = true; $('photoPh').hidden = false; $('photoRemove').hidden = true; }
+  function imagesOf(p){
+    return Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : []);
+  }
+  function dropPhotos(){
+    photos.forEach(function(ph){ if(ph.blob) URL.revokeObjectURL(ph.url); });
+    photos = [];
+  }
+  function renderPhotos(){
+    var box = $('photos');
+    box.innerHTML = '';
+    box.classList.toggle('empty-set', !photos.length);
+    photos.forEach(function(ph, i){
+      var el = document.createElement('div');
+      el.className = 'photo';
+      el.innerHTML = '<img alt="">' +
+        (i === 0 ? '<span class="badge">Titelbild</span>' : '') +
+        '<div class="ctl">' +
+          (i > 0 ? '<button type="button" data-act="first" aria-label="Als Titelbild verwenden" title="Als Titelbild">★</button>' : '') +
+          '<button type="button" data-act="del" aria-label="Foto entfernen" title="Entfernen">✕</button>' +
+        '</div>';
+      el.querySelector('img').src = ph.url;
+      el.querySelectorAll('button').forEach(function(b){ b.dataset.i = i; });
+      box.appendChild(el);
+    });
+    if(photos.length < MAX_IMAGES){
+      var add = document.createElement('label');
+      add.className = 'photo-pick';
+      add.innerHTML = '<div class="ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>' +
+        (photos.length ? 'Weiteres Foto' : 'Foto aufnehmen oder auswählen') + '</div>' +
+        '<input type="file" accept="image/*" multiple>';
+      box.appendChild(add);
+    }
   }
 
   function openSheet(i){
@@ -486,10 +513,10 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
     renderParts();
     $('deleteBtn').hidden = i < 0;
     $('sheetError').hidden = true;
-    $('photoInput').value = '';
-    pendingPhoto = null;
-    setPhoto(p.image || null);
-    $('photoHint').textContent = 'Wird automatisch verkleinert.';
+    dropPhotos();
+    photos = imagesOf(p).map(function(u){ return { url:u, blob:null }; });
+    renderPhotos();
+    $('photoHint').textContent = 'Bis zu 4 Fotos – das erste ist das Titelbild.';
     $('sheetBg').classList.add('open');
     $('sheet').classList.add('open');
     $('sheet').setAttribute('aria-hidden','false');
@@ -503,8 +530,7 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
     $('sheet').classList.remove('open');
     $('sheet').setAttribute('aria-hidden','true');
     document.body.style.overflow = '';
-    if(pendingPhoto && photoState && photoState.indexOf('blob:') === 0) URL.revokeObjectURL(photoState);
-    pendingPhoto = null;
+    dropPhotos();
   }
   $('addBtn').addEventListener('click', function(){ tab === 'filaments' ? openFilSheet(-1) : openSheet(-1); });
   $('sheetClose').addEventListener('click', function(){ closeSheet(); });
@@ -571,21 +597,39 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
     });
   }
 
-  $('photoInput').addEventListener('change', function(){
-    var f = this.files && this.files[0];
-    if(!f) return;
-    $('photoHint').textContent = 'Verkleinere Foto …';
-    shrink(f).then(function(blob){
-      pendingPhoto = blob;
-      setPhoto(URL.createObjectURL(blob));
-      $('photoHint').textContent = 'Neues Foto (' + Math.round(blob.size / 1024) + ' KB) – wird beim Speichern hochgeladen.';
-    }).catch(function(ex){
-      $('photoHint').textContent = ex.message;
+  $('photos').addEventListener('change', function(e){
+    var input = e.target;
+    if(input.type !== 'file' || !input.files || !input.files.length) return;
+    var files = Array.prototype.slice.call(input.files, 0, MAX_IMAGES - photos.length);
+    var skipped = input.files.length - files.length;
+    $('photoHint').textContent = files.length > 1 ? 'Verkleinere ' + files.length + ' Fotos …' : 'Verkleinere Foto …';
+    Promise.all(files.map(function(f){ return shrink(f).catch(function(ex){ return ex; }); })).then(function(results){
+      var failed = null;
+      results.forEach(function(r){
+        if(r instanceof Error){ failed = r; return; }
+        if(photos.length < MAX_IMAGES) photos.push({ url: URL.createObjectURL(r), blob: r });
+      });
+      renderPhotos();
+      $('photoHint').textContent = failed ? failed.message
+        : skipped > 0 ? 'Maximal 4 Fotos – ' + skipped + ' nicht übernommen.'
+        : 'Neue Fotos werden beim Speichern hochgeladen.';
     });
   });
-  $('photoRemove').addEventListener('click', function(){
-    pendingPhoto = null; $('photoInput').value = ''; setPhoto(null);
-    $('photoHint').textContent = 'Ohne Foto wird das Logo als Platzhalter gezeigt.';
+  $('photos').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-act]');
+    if(!b) return;
+    e.preventDefault();
+    var i = Number(b.dataset.i);
+    var ph = photos[i];
+    if(!ph) return;
+    if(b.dataset.act === 'del'){
+      if(ph.blob) URL.revokeObjectURL(ph.url);
+      photos.splice(i, 1);
+      $('photoHint').textContent = photos.length ? 'Bis zu 4 Fotos – das erste ist das Titelbild.' : 'Ohne Foto wird das Logo als Platzhalter gezeigt.';
+    } else if(b.dataset.act === 'first'){
+      photos.splice(i, 1); photos.unshift(ph);
+    }
+    renderPhotos();
   });
 
   $('sheet').addEventListener('submit', function(e){
@@ -602,15 +646,25 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
     btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Speichere …';
     busy = true;
 
-    var upload = pendingPhoto
-      ? api('upload', { method:'POST', headers:{ 'content-type':'image/jpeg' }, body: pendingPhoto }).then(function(r){ return r.url; })
-      : Promise.resolve(photoState && photoState.indexOf('blob:') !== 0 ? photoState : null);
+    // Neue Fotos nacheinander hochladen; bereits hochgeladene URLs merken, damit ein
+    // erneuter Versuch nach einem Fehler sie nicht doppelt hochlädt.
+    var upload = photos.reduce(function(chain, ph){
+      return chain.then(function(){
+        if(!ph.blob) return;
+        return api('upload', { method:'POST', headers:{ 'content-type':'image/jpeg' }, body: ph.blob }).then(function(r){
+          URL.revokeObjectURL(ph.url);
+          ph.url = r.url; ph.blob = null;
+        });
+      });
+    }, Promise.resolve());
 
-    upload.then(function(imageUrl){
+    upload.then(function(){
+      var images = photos.map(function(ph){ return ph.url; });
+      var imageUrl = images[0] || null;
       var old = editIndex >= 0 ? products[editIndex] : {};
       var item = {
         id: old.id, name: name, desc: $('fDesc').value.trim(), price: price,
-        image: imageUrl, icon: imageUrl ? null : (ICONS.indexOf(old.icon) >= 0 ? old.icon : null),
+        image: imageUrl, images: images, icon: imageUrl ? null : (ICONS.indexOf(old.icon) >= 0 ? old.icon : null),
         parts: (readParts(), partNames.map(function(t){ return partNames.length > 1 ? t.trim() : ''; })),
         visible: $('fVisible').checked
       };

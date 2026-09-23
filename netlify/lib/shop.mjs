@@ -8,6 +8,7 @@ export const IMG_KEY = /^[a-z0-9-]{6,40}\.(jpg|png|webp)$/;
 const PRODUCTS_KEY = "products.json";
 const FILAMENTS_KEY = "filaments.json";
 export const MAX_COLORS = 4; // A1 mini + AMS lite: bis zu 4 Farben pro Druck
+export const MAX_IMAGES = 4;
 
 export const shopStore = () => getStore({ name: "shop", consistency: "strong" });
 
@@ -54,6 +55,8 @@ export async function checkAuth(req) {
 /* ---------- Eingaben prüfen ---------- */
 const str = (v, max) => String(v ?? "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, max);
 
+const isImageUrl = (u) => /^\/api\/img\/[a-z0-9.-]+$/.test(u) || /^\/images\/[A-Za-z0-9._-]+$/.test(u);
+
 export function sanitizeList(input) {
   if (!Array.isArray(input)) throw new Error("Ungültige Daten.");
   if (input.length > 200) throw new Error("Maximal 200 Produkte.");
@@ -66,13 +69,15 @@ export function sanitizeList(input) {
     seen.add(id);
     const price = Math.round(Number(p?.price) * 100) / 100;
     if (!Number.isFinite(price) || price < 0 || price > 10000) throw new Error(`„${name}“: Preis ungültig.`);
-    let image = p?.image ? String(p.image) : null;
-    if (image && !(/^\/api\/img\/[a-z0-9.-]+$/.test(image) || /^\/images\/[A-Za-z0-9._-]+$/.test(image))) image = null;
+    // Fotos: bis zu 4, das erste ist das Titelbild. Ältere Daten haben nur "image".
+    const rawImages = Array.isArray(p?.images) ? p.images : p?.image ? [p.image] : [];
+    const images = [...new Set(rawImages.map((u) => String(u ?? "")).filter(isImageUrl))].slice(0, MAX_IMAGES);
+    const image = images[0] || null;
     const icon = ICONS.includes(p?.icon) ? p.icon : null;
     // Farbteile: ein Eintrag pro wählbarer Farbe (Name darf leer sein, z. B. ["Körper", "Augen"])
     let parts = Array.isArray(p?.parts) ? p.parts.slice(0, MAX_COLORS).map((t) => str(t, 24)) : [""];
     if (!parts.length) parts = [""];
-    return { id, name, desc: str(p?.desc, 240), price, image, icon: image ? null : icon, parts, visible: p?.visible !== false };
+    return { id, name, desc: str(p?.desc, 240), price, image, images, icon: image ? null : icon, parts, visible: p?.visible !== false };
   });
 }
 
@@ -94,7 +99,7 @@ export function sanitizeFilaments(input) {
 
 /* Bilder löschen, die kein Produkt mehr verwendet */
 export async function cleanupImages(list) {
-  const used = new Set(list.map((p) => p.image).filter((u) => u && u.startsWith("/api/img/")).map((u) => "img/" + u.slice(9)));
+  const used = new Set(list.flatMap((p) => (p.images?.length ? p.images : [p.image])).filter((u) => u && u.startsWith("/api/img/")).map((u) => "img/" + u.slice(9)));
   const store = shopStore();
   const { blobs } = await store.list({ prefix: "img/" });
   const cutoff = Date.now() - 60 * 60 * 1000; // frische Uploads (< 1 h) nie anrühren

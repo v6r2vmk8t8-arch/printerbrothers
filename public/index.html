@@ -477,6 +477,18 @@ header.nav{
 .product-art svg{ width:100%; height:100%; }
 .product-art img{ width:100%; height:100%; object-fit:cover; display:block; }
 .product-art.photo{ padding:0; }
+/* Mehrere Fotos: wischbare Galerie */
+.gallery{ position:absolute; inset:0; display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; overscroll-behavior-x:contain; }
+.gallery::-webkit-scrollbar{ display:none; }
+.gallery img{ flex:0 0 100%; scroll-snap-align:start; }
+.gal-dots{ position:absolute; left:0; right:0; bottom:8px; display:flex; justify-content:center; gap:6px; pointer-events:none; }
+.gal-dots i{ width:7px; height:7px; border-radius:50%; background:rgba(236,241,238,0.45); box-shadow:0 0 0 1px rgba(3,5,6,0.35); transition:background .2s, transform .2s; }
+.gal-dots i.on{ background:var(--filament); transform:scale(1.25); }
+.gal-btn{ position:absolute; top:50%; transform:translateY(-50%); width:34px; height:34px; border-radius:50%; border:1px solid rgba(236,241,238,0.25); background:rgba(3,5,6,0.6); color:#ECF1EE; font-size:1rem; line-height:1; cursor:pointer; display:grid; place-items:center; opacity:0; transition:opacity .2s; }
+.gal-btn.prev{ left:8px; } .gal-btn.next{ right:8px; }
+.gal-btn:disabled{ visibility:hidden; }
+.product-art:hover .gal-btn, .gal-btn:focus-visible{ opacity:1; }
+@media (hover:none){ .gal-btn{ display:none; } }
 .product h3{ font-size:1.08rem; font-variation-settings:"wdth" 106; }
 .product-desc{ color:var(--ink-soft); font-size:0.9rem; margin:0; flex:1; }
 .product-foot{
@@ -1267,8 +1279,18 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
   function cartTotal(){ return lines.reduce(function(s,l){ return s + PRODUCTS[l.id].price * l.qty; }, 0); }
   function cartCount(){ return lines.reduce(function(s,l){ return s + l.qty; }, 0); }
 
+  function imagesOf(p){
+    return Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : []);
+  }
   function artHTML(p){
-    if(p.image) return '<img src="' + esc(p.image) + '" alt="" loading="lazy">';
+    var imgs = imagesOf(p);
+    if(imgs.length > 1){
+      return '<div class="gallery">' + imgs.map(function(u){ return '<img src="' + esc(u) + '" alt="" loading="lazy">'; }).join('') + '</div>' +
+        '<button class="gal-btn prev" type="button" aria-label="Vorheriges Foto" disabled>‹</button>' +
+        '<button class="gal-btn next" type="button" aria-label="Nächstes Foto">›</button>' +
+        '<div class="gal-dots" aria-hidden="true">' + imgs.map(function(_, i){ return '<i' + (i === 0 ? ' class="on"' : '') + '></i>'; }).join('') + '</div>';
+    }
+    if(imgs.length) return '<img src="' + esc(imgs[0]) + '" alt="" loading="lazy">';
     var icon = ICONS.indexOf(p.icon) >= 0 ? 'icon-' + p.icon : 'pb-mark';
     var vb = icon === 'pb-mark' ? '-8 -8 116 116' : '0 0 120 120';
     return '<svg viewBox="' + vb + '" aria-hidden="true"><use href="#' + icon + '"></use></svg>';
@@ -1291,12 +1313,12 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
     grid.innerHTML = '';
     list.forEach(function(p, i){
       if(!p || !p.id) return;
-      next[p.id] = { name:p.name, price:Number(p.price) || 0, image:p.image || null, icon:p.icon || null, parts: Array.isArray(p.parts) && p.parts.length ? p.parts : [''] };
+      next[p.id] = { name:p.name, price:Number(p.price) || 0, image:imagesOf(p)[0] || null, icon:p.icon || null, parts: Array.isArray(p.parts) && p.parts.length ? p.parts : [''] };
       var el = document.createElement('article');
       el.className = 'product reveal';
       el.style.setProperty('--i', i % 3);
       el.innerHTML =
-        '<div class="product-art' + (p.image ? ' photo' : '') + '">' + artHTML(p) + '</div>' +
+        '<div class="product-art' + (imagesOf(p).length ? ' photo' : '') + '">' + artHTML(p) + '</div>' +
         '<h3>' + esc(p.name) + '</h3>' +
         '<p class="product-desc">' + esc(p.desc) + '</p>' +
         cardColorsHTML(next[p.id]) +
@@ -1304,14 +1326,34 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
           '<span class="price">' + formatPrice(p.price) + '</span>' +
           '<button class="btn-add" type="button" data-id="' + esc(p.id) + '">In den Warenkorb</button>' +
         '</div>';
-      var img = el.querySelector('img');
-      if(img) img.alt = p.name;
+      var pics = el.querySelectorAll('.product-art img');
+      pics.forEach(function(img, k){ img.alt = pics.length > 1 ? p.name + ' – Foto ' + (k + 1) + ' von ' + pics.length : p.name; });
+      initGallery(el);
       grid.appendChild(el);
       if(window.pbReveal) window.pbReveal(el); else el.classList.add('in');
     });
     PRODUCTS = next;
     renderCart();
   }
+  /* Galerie: Punkte mitführen, Pfeile für Maus/Tastatur */
+  function initGallery(card){
+    var g = card.querySelector('.gallery');
+    if(!g) return;
+    var dots = card.querySelectorAll('.gal-dots i');
+    var prev = card.querySelector('.gal-btn.prev'), next = card.querySelector('.gal-btn.next');
+    function index(){ return Math.round(g.scrollLeft / (g.clientWidth || 1)); }
+    function update(){
+      var k = index();
+      dots.forEach(function(d, j){ d.classList.toggle('on', j === k); });
+      prev.disabled = k <= 0;
+      next.disabled = k >= dots.length - 1;
+    }
+    function go(d){ g.scrollTo({ left:(index() + d) * g.clientWidth, behavior:'smooth' }); }
+    g.addEventListener('scroll', update, { passive:true });
+    prev.addEventListener('click', function(){ go(-1); });
+    next.addEventListener('click', function(){ go(1); });
+  }
+
   /* Farbzeile auf den Karten (neu) setzen – z. B. wenn die Filamente nachladen */
   function decorateCards(){
     grid.querySelectorAll('.product').forEach(function(card){
