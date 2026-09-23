@@ -1,5 +1,5 @@
-// Admin: Login prüfen, Produktliste speichern, Fotos hochladen
-import { checkAuth, cleanupImages, json, loadProducts, sanitizeList, saveProducts, shopStore } from "../lib/shop.mjs";
+// Admin: Login prüfen, Produkte und Filamente speichern, Fotos hochladen
+import { checkAuth, cleanupImages, json, loadFilaments, loadProducts, sanitizeFilaments, sanitizeList, saveFilaments, saveProducts, shopStore } from "../lib/shop.mjs";
 
 const TYPES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 const MAX_BYTES = 4 * 1024 * 1024;
@@ -19,6 +19,14 @@ export default async (req) => {
       await saveProducts(list);
       cleanupImages(list).catch(() => {});
       return json({ ok: true, products: list });
+    }
+
+    if (route === "filaments" && req.method === "GET") return json(await loadFilaments());
+
+    if (route === "filaments" && req.method === "PUT") {
+      const list = sanitizeFilaments(await req.json());
+      await saveFilaments(list);
+      return json({ ok: true, filaments: list });
     }
 
     if (route === "upload" && req.method === "POST") {

@@ -109,6 +109,38 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
 .sheet-foot{display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap}
 .sheet-foot .right{display:flex;gap:10px;margin-left:auto}
 
+/* tabs */
+.tabs{display:flex;gap:4px;background:var(--plate);border:1px solid var(--line);border-radius:var(--r-sm);padding:4px;margin-bottom:18px}
+.tabs button{flex:1;min-height:40px;border:0;background:none;border-radius:4px;color:var(--ink-soft);font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .2s,color .2s}
+.tabs button[aria-selected=true]{background:var(--plate-3);color:var(--ink)}
+.tabs .dots{display:flex}
+.tabs .dots i{width:10px;height:10px;border-radius:50%;margin-left:-3px;box-shadow:0 0 0 1.5px var(--plate)}
+
+/* filament swatches */
+.swatch{--c:#888;position:relative;display:inline-block;border-radius:50%;background:var(--c);box-shadow:inset 0 0 0 1px rgba(236,241,238,.22);flex:none}
+.swatch.clear{background:
+  linear-gradient(135deg,rgba(255,255,255,.55),rgba(255,255,255,0) 55%),
+  linear-gradient(color-mix(in srgb,var(--c) 45%,transparent),color-mix(in srgb,var(--c) 45%,transparent)),
+  repeating-conic-gradient(#3a4346 0 25%,#1c2224 0 50%) 0 0/10px 10px}
+.thumb .swatch{width:40px;height:40px}
+.item.off .thumb .swatch{opacity:.45}
+
+/* Farbteile im Produkt-Editor */
+.seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:var(--r-sm);overflow:hidden}
+.seg button{min-width:44px;min-height:40px;border:0;background:none;cursor:pointer;font-weight:600;color:var(--ink-soft)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed=true]{background:var(--filament);color:var(--void)}
+.parts{display:grid;gap:8px;margin:10px 0 16px}
+.parts label{display:grid;grid-template-columns:74px 1fr;align-items:center;gap:10px;font-size:.85rem;color:var(--ink-soft)}
+.parts input{padding:9px 12px}
+.color-row{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center}
+.color-row input[type=color]{width:52px;height:48px;padding:3px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--plate-2);cursor:pointer}
+.preview-sw{display:flex;align-items:center;gap:12px;padding:14px;border-radius:var(--r-md);background:var(--plate-2);border:1px solid var(--line);margin-bottom:16px}
+.preview-sw .swatch{width:48px;height:48px}
+.preview-sw .swatch.big2{width:30px;height:30px}
+.preview-sw b{display:block}
+.preview-sw small{color:var(--ink-soft)}
+
 .toast{position:fixed;left:50%;top:calc(70px + env(safe-area-inset-top));transform:translate(-50%,-20px);background:var(--plate-3);border:1px solid var(--line-strong);padding:10px 16px;border-radius:99px;font-size:.9rem;z-index:50;opacity:0;pointer-events:none;transition:opacity .25s,transform .35s var(--ease);white-space:nowrap}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 .toast.ok{border-color:var(--filament-line);color:var(--filament)}
@@ -167,13 +199,31 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
   </header>
 
   <main class="wrap">
-    <div class="intro">
-      <div>
-        <h1>Produkte</h1>
-        <p id="countInfo">Lädt …</p>
-      </div>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" id="tabProducts" aria-selected="true">Produkte</button>
+      <button type="button" role="tab" id="tabFilaments" aria-selected="false"><span class="dots" id="tabDots"></span>Filamente</button>
     </div>
-    <div class="list" id="list"></div>
+
+    <section id="productsPane">
+      <div class="intro">
+        <div>
+          <h1>Produkte</h1>
+          <p id="countInfo">Lädt …</p>
+        </div>
+      </div>
+      <div class="list" id="list"></div>
+    </section>
+
+    <section id="filamentsPane" hidden>
+      <div class="intro">
+        <div>
+          <h1>Filamente</h1>
+          <p id="filCountInfo">Lädt …</p>
+        </div>
+      </div>
+      <p class="hint" style="margin:-6px 0 14px">Nur vorrätige Farben können Kund:innen im Warenkorb auswählen.</p>
+      <div class="list" id="filList"></div>
+    </section>
   </main>
 
   <button class="btn btn-primary fab" id="addBtn" type="button">+ Neues Produkt</button>
@@ -214,6 +264,16 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
       <input type="text" id="fPrice" inputmode="decimal" placeholder="12,50" required>
     </label>
   </div>
+  <div class="field" style="margin-bottom:0">
+    <span style="font-size:.85rem;color:var(--ink-soft);font-weight:500">Wie viele Farben hat das Teil?</span>
+    <div class="seg" id="fColors" role="group" aria-label="Anzahl Farben">
+      <button type="button" data-n="1" aria-pressed="true">1</button>
+      <button type="button" data-n="2" aria-pressed="false">2</button>
+      <button type="button" data-n="3" aria-pressed="false">3</button>
+      <button type="button" data-n="4" aria-pressed="false">4</button>
+    </div>
+  </div>
+  <div class="parts" id="fParts"></div>
   <label class="switch"><input type="checkbox" id="fVisible" checked> Im Shop sichtbar</label>
 
   <p class="error" id="sheetError" hidden></p>
@@ -222,6 +282,41 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
     <div class="right">
       <button class="btn btn-ghost" type="button" id="cancelBtn">Abbrechen</button>
       <button class="btn btn-primary" type="submit" id="saveBtn">Speichern</button>
+    </div>
+  </div>
+</form>
+
+<form class="sheet" id="filSheet" aria-hidden="true" novalidate>
+  <div class="sheet-head">
+    <h2 id="filSheetTitle">Neues Filament</h2>
+    <button class="btn btn-ghost icon-btn" type="button" id="filSheetClose" aria-label="Schließen">✕</button>
+  </div>
+
+  <div class="preview-sw">
+    <span class="swatch" id="filPrevSw"></span>
+    <div><b id="filPrevName">Neue Farbe</b><small id="filPrevHex" class="mono">#FFFFFF</small></div>
+  </div>
+
+  <label class="field">
+    <span>Name</span>
+    <input type="text" id="gName" maxlength="30" required placeholder="z. B. Orange">
+  </label>
+  <div class="field">
+    <span style="font-size:.85rem;color:var(--ink-soft);font-weight:500">Farbe (für die Anzeige im Shop)</span>
+    <div class="color-row">
+      <input type="color" id="gColor" value="#ffffff" aria-label="Farbe wählen">
+      <input type="text" id="gHex" maxlength="7" placeholder="#FF7A2F" class="mono" autocomplete="off" spellcheck="false" aria-label="Farbcode">
+    </div>
+  </div>
+  <label class="switch" style="margin-bottom:8px"><input type="checkbox" id="gTrans"> Transluzent (durchscheinend)</label>
+  <label class="switch"><input type="checkbox" id="gAvail" checked> Vorrätig – im Shop wählbar</label>
+
+  <p class="error" id="filSheetError" hidden></p>
+  <div class="sheet-foot">
+    <button class="btn btn-danger" type="button" id="filDeleteBtn" hidden>Löschen</button>
+    <div class="right">
+      <button class="btn btn-ghost" type="button" id="filCancelBtn">Abbrechen</button>
+      <button class="btn btn-primary" type="submit" id="filSaveBtn">Speichern</button>
     </div>
   </div>
 </form>
@@ -238,6 +333,11 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
   var pendingPhoto = null;  // verkleinertes Foto (Blob), noch nicht hochgeladen
   var photoState = null;    // aktuelle Bild-URL im Formular (oder null)
   var busy = false;
+  var filaments = [];
+  var filEditIndex = -1;
+  var tab = 'products';
+  var partNames = [''];     // Farbteile im Produkt-Editor
+  var MAX_COLORS = 4;
 
   var $ = function(id){ return document.getElementById(id); };
 
@@ -273,11 +373,11 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
   }
 
   /* ---------- Login ---------- */
-  function showApp(){ $('loginView').hidden = true; $('appView').hidden = false; refresh(); }
+  function showApp(){ $('loginView').hidden = true; $('appView').hidden = false; refresh(); refreshFilaments(); }
   function logout(){
     pw = ''; store('pbpw');
     $('appView').hidden = true; $('loginView').hidden = false;
-    closeSheet(true);
+    closeSheet(true); closeFilSheet(true);
     $('pw').value = ''; $('pw').focus();
   }
   $('loginForm').addEventListener('submit', function(e){
@@ -320,6 +420,7 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
         '<div class="thumb">' + thumbHTML(p) + '</div>' +
         '<div class="meta"><b></b><div class="sub"><span class="mono"></span>' +
           (p.visible === false ? '<span class="tag">ausgeblendet</span>' : '') +
+          ((p.parts || []).length > 1 ? '<span class="tag" style="color:var(--filament);border-color:var(--filament-line);background:var(--filament-soft)">' + p.parts.length + ' Farben</span>' : '') +
           (!p.image && p.icon ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">noch kein Foto</span>' : '') +
         '</div></div>' +
         '<div class="item-actions">' +
@@ -381,6 +482,8 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
     $('fDesc').value = p.desc || '';
     $('fPrice').value = p.price === '' ? '' : String(p.price).replace('.', ',');
     $('fVisible').checked = p.visible !== false;
+    partNames = Array.isArray(p.parts) && p.parts.length ? p.parts.slice(0, MAX_COLORS) : [''];
+    renderParts();
     $('deleteBtn').hidden = i < 0;
     $('sheetError').hidden = true;
     $('photoInput').value = '';
@@ -395,6 +498,7 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
   }
   function closeSheet(force){
     if(busy && !force) return;
+    if(!$('sheet').classList.contains('open')) return;
     $('sheetBg').classList.remove('open');
     $('sheet').classList.remove('open');
     $('sheet').setAttribute('aria-hidden','true');
@@ -402,11 +506,49 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
     if(pendingPhoto && photoState && photoState.indexOf('blob:') === 0) URL.revokeObjectURL(photoState);
     pendingPhoto = null;
   }
-  $('addBtn').addEventListener('click', function(){ openSheet(-1); });
+  $('addBtn').addEventListener('click', function(){ tab === 'filaments' ? openFilSheet(-1) : openSheet(-1); });
   $('sheetClose').addEventListener('click', function(){ closeSheet(); });
   $('cancelBtn').addEventListener('click', function(){ closeSheet(); });
-  $('sheetBg').addEventListener('click', function(){ closeSheet(); });
-  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeSheet(); });
+  $('sheetBg').addEventListener('click', function(){ closeSheet(); closeFilSheet(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape'){ closeSheet(); closeFilSheet(); } });
+
+  /* ---------- Farbteile (1–4 Farben pro Produkt) ---------- */
+  function readParts(){
+    $('fParts').querySelectorAll('input').forEach(function(inp, i){ partNames[i] = inp.value; });
+  }
+  function renderParts(){
+    var n = partNames.length;
+    $('fColors').querySelectorAll('button').forEach(function(b){
+      b.setAttribute('aria-pressed', String(Number(b.dataset.n) === n));
+    });
+    var box = $('fParts');
+    box.innerHTML = '';
+    if(n === 1){
+      box.innerHTML = '<p class="hint" style="margin:0">Kund:innen wählen im Warenkorb eine Farbe.</p>';
+      return;
+    }
+    partNames.forEach(function(name, i){
+      var l = document.createElement('label');
+      l.innerHTML = '<span>Farbe ' + (i + 1) + '</span><input type="text" maxlength="24">';
+      var inp = l.querySelector('input');
+      inp.value = name || '';
+      inp.placeholder = ['z. B. Körper','z. B. Augen','z. B. Flügel','z. B. Sockel'][i];
+      box.appendChild(l);
+    });
+    var h = document.createElement('p');
+    h.className = 'hint'; h.style.margin = '2px 0 0';
+    h.textContent = 'Namen sind optional – sie helfen beim Auswählen im Warenkorb.';
+    box.appendChild(h);
+  }
+  $('fColors').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-n]');
+    if(!b) return;
+    readParts();
+    var n = Number(b.dataset.n);
+    while(partNames.length < n) partNames.push('');
+    partNames.length = n;
+    renderParts();
+  });
 
   /* Foto verkleinern: längste Seite max. 1600 px, JPEG */
   function shrink(file){
@@ -469,6 +611,7 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
       var item = {
         id: old.id, name: name, desc: $('fDesc').value.trim(), price: price,
         image: imageUrl, icon: imageUrl ? null : (ICONS.indexOf(old.icon) >= 0 ? old.icon : null),
+        parts: (readParts(), partNames.map(function(t){ return partNames.length > 1 ? t.trim() : ''; })),
         visible: $('fVisible').checked
       };
       var next = products.slice();
@@ -489,6 +632,160 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
     if(!confirm('„' + p.name + '“ wirklich löschen?')) return;
     var next = products.slice(); next.splice(editIndex, 1);
     save(next, 'Gelöscht').then(function(){ closeSheet(true); }).catch(function(){});
+  });
+
+  /* ---------- Tabs ---------- */
+  function setTab(t){
+    tab = t;
+    $('tabProducts').setAttribute('aria-selected', String(t === 'products'));
+    $('tabFilaments').setAttribute('aria-selected', String(t === 'filaments'));
+    $('productsPane').hidden = t !== 'products';
+    $('filamentsPane').hidden = t !== 'filaments';
+    $('addBtn').textContent = t === 'filaments' ? '+ Neues Filament' : '+ Neues Produkt';
+    window.scrollTo(0, 0);
+  }
+  $('tabProducts').addEventListener('click', function(){ setTab('products'); });
+  $('tabFilaments').addEventListener('click', function(){ setTab('filaments'); });
+
+  /* ---------- Filamente ---------- */
+  function swatchHTML(f, extra){
+    return '<span class="swatch' + (f.translucent ? ' clear' : '') + (extra ? ' ' + extra : '') + '" style="--c:' + f.hex + '"></span>';
+  }
+  function refreshFilaments(){
+    api('filaments').then(function(list){ filaments = list; renderFilaments(); })
+      .catch(function(ex){ $('filCountInfo').textContent = ex.message; });
+  }
+  function renderFilaments(){
+    var list = $('filList');
+    list.innerHTML = '';
+    var avail = filaments.filter(function(f){ return f.available !== false; });
+    $('filCountInfo').textContent = filaments.length + ' Farben · ' + avail.length + ' vorrätig';
+    $('tabDots').innerHTML = avail.slice(0, 6).map(function(f){
+      return '<i style="background:' + f.hex + '"></i>';
+    }).join('');
+    if(!filaments.length){
+      list.innerHTML = '<div class="empty">Noch keine Filamente. Tippe unten auf „+ Neues Filament“.</div>';
+      return;
+    }
+    filaments.forEach(function(f, i){
+      var el = document.createElement('div');
+      el.className = 'item' + (f.available === false ? ' off hidden-item' : '');
+      el.innerHTML =
+        '<div class="thumb">' + swatchHTML(f) + '</div>' +
+        '<div class="meta"><b></b><div class="sub"><span class="mono">' + f.hex + '</span>' +
+          (f.translucent ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">transluzent</span>' : '') +
+          (f.available === false ? '<span class="tag">nicht vorrätig</span>' : '') +
+        '</div></div>' +
+        '<div class="item-actions">' +
+          '<div class="order">' +
+            '<button class="btn btn-ghost" type="button" data-act="up" aria-label="Nach oben"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+            '<button class="btn btn-ghost" type="button" data-act="down" aria-label="Nach unten"' + (i === filaments.length - 1 ? ' disabled' : '') + '>▼</button>' +
+          '</div>' +
+          '<span class="chev" aria-hidden="true">›</span>' +
+        '</div>';
+      el.querySelector('.meta b').textContent = f.name;
+      el.querySelectorAll('button[data-act]').forEach(function(b){ b.dataset.i = i; });
+      el.dataset.i = i;
+      el.setAttribute('role','button'); el.tabIndex = 0;
+      el.setAttribute('aria-label', f.name + ' bearbeiten');
+      list.appendChild(el);
+    });
+  }
+  function saveFilaments(next, msg){
+    busy = true;
+    return api('filaments', {
+      method:'PUT', headers:{ 'content-type':'application/json' }, body: JSON.stringify(next)
+    }).then(function(res){
+      filaments = res.filaments; renderFilaments(); toast(msg || 'Gespeichert ✓', 'ok');
+    }).catch(function(ex){ toast(ex.message, 'err'); throw ex; })
+      .then(function(v){ busy = false; return v; }, function(ex){ busy = false; throw ex; });
+  }
+  $('filList').addEventListener('keydown', function(e){
+    if((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('item')){ e.preventDefault(); openFilSheet(Number(e.target.dataset.i)); }
+  });
+  $('filList').addEventListener('click', function(e){
+    if(busy) return;
+    var b = e.target.closest('button[data-act]');
+    if(!b){ var row = e.target.closest('.item'); if(row) openFilSheet(Number(row.dataset.i)); return; }
+    var i = Number(b.dataset.i), j = b.dataset.act === 'up' ? i - 1 : i + 1;
+    if(j < 0 || j >= filaments.length) return;
+    var next = filaments.slice();
+    var tmp = next[i]; next[i] = next[j]; next[j] = tmp;
+    saveFilaments(next, 'Reihenfolge gespeichert').catch(function(){});
+  });
+
+  function normHex(v){
+    v = String(v || '').trim().toUpperCase();
+    if(v && v[0] !== '#') v = '#' + v;
+    if(/^#[0-9A-F]{3}$/.test(v)) v = '#' + v[1] + v[1] + v[2] + v[2] + v[3] + v[3];
+    return /^#[0-9A-F]{6}$/.test(v) ? v : '';
+  }
+  function updateFilPreview(){
+    var hex = normHex($('gHex').value) || '#888888';
+    var sw = $('filPrevSw');
+    sw.style.setProperty('--c', hex);
+    sw.className = 'swatch' + ($('gTrans').checked ? ' clear' : '');
+    $('filPrevName').textContent = $('gName').value.trim() || 'Neue Farbe';
+    $('filPrevHex').textContent = hex + ($('gTrans').checked ? ' · transluzent' : '');
+  }
+  $('gColor').addEventListener('input', function(){ $('gHex').value = this.value.toUpperCase(); updateFilPreview(); });
+  $('gHex').addEventListener('input', function(){ var h = normHex(this.value); if(h) $('gColor').value = h.toLowerCase(); updateFilPreview(); });
+  $('gName').addEventListener('input', updateFilPreview);
+  $('gTrans').addEventListener('change', updateFilPreview);
+
+  function openFilSheet(i){
+    filEditIndex = i;
+    var f = i >= 0 ? filaments[i] : { name:'', hex:'#FF7A2F', translucent:false, available:true };
+    $('filSheetTitle').textContent = i >= 0 ? 'Filament bearbeiten' : 'Neues Filament';
+    $('gName').value = f.name;
+    $('gHex').value = f.hex;
+    $('gColor').value = f.hex.toLowerCase();
+    $('gTrans').checked = !!f.translucent;
+    $('gAvail').checked = f.available !== false;
+    $('filDeleteBtn').hidden = i < 0;
+    $('filSheetError').hidden = true;
+    updateFilPreview();
+    $('sheetBg').classList.add('open');
+    $('filSheet').classList.add('open');
+    $('filSheet').setAttribute('aria-hidden','false');
+    document.body.style.overflow = 'hidden';
+    if(i < 0) setTimeout(function(){ $('gName').focus(); }, 350);
+  }
+  function closeFilSheet(force){
+    if(busy && !force) return;
+    if(!$('filSheet').classList.contains('open')) return;
+    $('sheetBg').classList.remove('open');
+    $('filSheet').classList.remove('open');
+    $('filSheet').setAttribute('aria-hidden','true');
+    document.body.style.overflow = '';
+  }
+  $('filSheetClose').addEventListener('click', function(){ closeFilSheet(); });
+  $('filCancelBtn').addEventListener('click', function(){ closeFilSheet(); });
+
+  $('filSheet').addEventListener('submit', function(e){
+    e.preventDefault();
+    if(busy) return;
+    var err = $('filSheetError'), name = $('gName').value.trim(), hex = normHex($('gHex').value);
+    err.hidden = true;
+    if(!name){ err.textContent = 'Bitte einen Namen eingeben.'; err.hidden = false; $('gName').focus(); return; }
+    if(!hex){ err.textContent = 'Bitte einen gültigen Farbcode eingeben, z. B. #FF7A2F'; err.hidden = false; $('gHex').focus(); return; }
+    var old = filEditIndex >= 0 ? filaments[filEditIndex] : {};
+    var item = { id: old.id, name: name, hex: hex, translucent: $('gTrans').checked, available: $('gAvail').checked };
+    var next = filaments.slice();
+    if(filEditIndex >= 0) next[filEditIndex] = item; else next.push(item);
+    var btn = $('filSaveBtn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Speichere …';
+    saveFilaments(next, filEditIndex >= 0 ? 'Änderungen gespeichert ✓' : 'Filament hinzugefügt ✓')
+      .then(function(){ closeFilSheet(true); })
+      .catch(function(ex){ err.textContent = ex.message; err.hidden = false; })
+      .then(function(){ btn.disabled = false; btn.textContent = 'Speichern'; });
+  });
+  $('filDeleteBtn').addEventListener('click', function(){
+    if(filEditIndex < 0 || busy) return;
+    var f = filaments[filEditIndex];
+    if(!confirm('„' + f.name + '“ wirklich löschen?\n(Tipp: Wenn es nur gerade aus ist, besser „Vorrätig“ ausschalten.)')) return;
+    var next = filaments.slice(); next.splice(filEditIndex, 1);
+    saveFilaments(next, 'Gelöscht').then(function(){ closeFilSheet(true); }).catch(function(){});
   });
 
   /* ---------- Start ---------- */

@@ -13,6 +13,18 @@
 
 Änderungen sind sofort im Shop sichtbar – kein neues Hochladen nötig.
 
+## Farben pro Produkt
+Im Produkt-Editor bei „Wie viele Farben hat das Teil?“ 1–4 wählen.
+Bei mehreren Farben können die Teile benannt werden (z. B. Körper, Augen) –
+so steht es dann im Warenkorb.
+
+## Filamente verwalten
+1. Im Admin oben auf „Filamente“ tippen
+2. „+ Neues Filament“: Name, Farbe (Farbwähler oder Code wie #FF7A2F), ggf. „Transluzent“
+3. Ist eine Rolle leer: Filament antippen → „Vorrätig“ ausschalten. Dann ist die Farbe
+   im Shop nicht mehr wählbar, bleibt aber gespeichert.
+4. ▲▼ ändert die Reihenfolge im Warenkorb
+
 ## Passwort ändern
 Netlify → Site configuration → Environment variables → `ADMIN_PASSWORD` bearbeiten
 → danach Deploys → „Trigger deploy“.
