@@ -145,7 +145,7 @@
     <button class="big b" id="bPlay2">👥 2 SPIELER</button>
     <button class="big y" id="bGarage">🔧 GARAGE</button>
   </div>
-  <div class="hint">▶ GAS rechts · ◀ BREMSE links · 🔥 TURBO · In der Luft drehen mit Gas/Bremse — ein Salto gibt Bonus-Münzen!<br>Sammle ⛽ Sprit, sonst ist die Fahrt vorbei. Pass auf deinen Kopf auf!</div>
+  <div class="hint">▶ GAS rechts · ◀ BREMSE links · 🔥 TURBO · Über die Schanzen springen! In der Luft BREMSE halten = Salto mit Bonus-Münzen!<br>Sammle ⛽ Sprit, sonst ist die Fahrt vorbei. Pass auf deinen Kopf auf!</div>
   <div id="rotate">🔄 Tipp: Dreh das Tablet quer!</div>
 </div>
 
@@ -237,14 +237,56 @@ function slopeAt(x) {
             + noise(x / st.sLen[1], st.seed + 1) * st.sAmp[1] * (0.4 + 0.6 * d)
             + noise(x / st.sLen[2], st.seed + 2) * st.sAmp[2] * (0.2 + 0.8 * d);
   const mx = lerp(st.maxSlope[0], st.maxSlope[1], d);
-  return Math.tanh(sum / mx) * mx * ramp;
+  let v = Math.tanh(sum / mx) * mx * ramp;
+  const j = jumpNear(x);
+  if (j) { // leicht bergab anfahren, flach unter der Schanze, bergab landen
+    if (x < j.X - j.L) v = lerp(v, 0.18, clamp((x - j.a) / 250, 0, 1));
+    else if (x <= j.X + j.D) v = 0;
+    else v = lerp(v, 0.3, clamp((j.b - x) / 250, 0, 1));
+  }
+  return v;
+}
+
+// ---------- Sprungschanzen ----------
+let JUMPS = [], JB = new Map();
+const JBS = 2000;
+function buildJumps() {
+  JUMPS = []; JB = new Map();
+  let m = 90;
+  for (let k = 0; k < 400; k++) {
+    const X = START_X + m * PX_PER_M;
+    const mega = k % 5 === 4;
+    const Hr = (70 + hash(k, stage.seed + 20) * 60 + Math.min(60, k * 5)) * (mega ? 1.6 : 1);
+    const L = Hr * 2.3, D = Hr * 1.5;
+    const j = { k, X, Hr, L, D, mega, a: X - L - 700, b: X + D + 800 };
+    JUMPS.push(j);
+    for (let bi = Math.floor(j.a / JBS); bi <= Math.floor(j.b / JBS); bi++) { if (!JB.has(bi)) JB.set(bi, []); JB.get(bi).push(j); }
+    m += 80 + hash(k, stage.seed + 21) * 90;
+  }
+}
+function jumpNear(x) {
+  const l = JB.get(Math.floor(x / JBS));
+  if (l) for (const j of l) if (x >= j.a && x <= j.b) return j;
+  return null;
+}
+function jumpsIn(x0, x1) {
+  const out = new Set();
+  for (let bi = Math.floor(x0 / JBS); bi <= Math.floor(x1 / JBS); bi++) for (const j of JB.get(bi) || []) if (j.b > x0 && j.a < x1) out.add(j);
+  return out;
+}
+function rampH(x) {
+  const j = jumpNear(x);
+  if (!j) return 0;
+  if (x >= j.X - j.L && x <= j.X) { const t = (x - (j.X - j.L)) / j.L; return -j.Hr * t * t; }
+  if (x > j.X && x < j.X + j.D) { const t = (x - j.X) / j.D; return -j.Hr * (0.5 + 0.5 * Math.cos(t * Math.PI)); }
+  return 0;
 }
 function ground(x) {
-  if (tStage !== stage) { tStage = stage; tH = [0]; }
+  if (tStage !== stage) { tStage = stage; tH = [0]; buildJumps(); }
   if (x <= 0) return 400;
   const f = x / TSTEP, i = Math.floor(f);
   while (tH.length <= i + 1) { const k = tH.length; tH.push(tH[k - 1] + slopeAt((k - 0.5) * TSTEP) * TSTEP); }
-  return 400 + lerp(tH[i], tH[i + 1], f - i);
+  return 400 + lerp(tH[i], tH[i + 1], f - i) + rampH(x);
 }
 const slope = x => (ground(x + 2) - ground(x - 2)) / 4;
 
@@ -253,28 +295,28 @@ const CARS = {
   monster: { name: 'Monstertruck', price: 0, upBase: 100, desc: 'Riesige Reifen – klettert überall rauf!',
     color: '#e63946', color2: '#8d0b15',
     wheels: [{ ox: -38, oy: 10, r: 26, rest: 14 }, { ox: 38, oy: 10, r: 26, rest: 14 }],
-    engine: 1500, vmax: 700, grip: 1.25, k: 95, damp: 10, air: 5, I: 1000, fuelTime: 20,
+    engine: 1500, vmax: 700, grip: 1.25, k: 95, damp: 10, air: 5, I: 1000, fuelTime: 15,
     nitroCap: 1, nitroForce: 750, nitroRegen: 0.05,
     head: { x: -2, y: -40, r: 10 }, hit: [[-56, -24], [56, -24], [-18, -54], [22, -54]], flame: [-58, -12],
     stats: [2, 3, 3, 2] },
   traktor: { name: 'Traktor-Bagger', price: 1500, upBase: 150, desc: 'Langsam, aber super stark und sparsam.',
     color: '#2a9d3f', color2: '#fdd835',
     wheels: [{ ox: -28, oy: 0, r: 30, rest: 8 }, { ox: 38, oy: 14, r: 16, rest: 8 }],
-    engine: 1750, vmax: 450, grip: 1.6, k: 110, damp: 11, air: 3.6, I: 1100, fuelTime: 30,
+    engine: 1750, vmax: 450, grip: 1.6, k: 110, damp: 11, air: 3.6, I: 1100, fuelTime: 23,
     nitroCap: 1, nitroForce: 550, nitroRegen: 0.05,
     head: { x: -22, y: -42, r: 10 }, hit: [[-46, -66], [4, -66], [54, -22], [72, 0]], flame: [-46, -6],
     stats: [1, 5, 5, 1] },
   racer: { name: 'Rennauto', price: 4000, upBase: 250, desc: 'Superschnell! Aber vorsichtig auf den Hügeln.',
     color: '#ffbe0b', color2: '#111',
     wheels: [{ ox: -46, oy: 6, r: 15, rest: 5 }, { ox: 46, oy: 6, r: 15, rest: 5 }],
-    engine: 2050, vmax: 1150, grip: 1.05, k: 140, damp: 12, air: 5, I: 1200, fuelTime: 24,
+    engine: 2050, vmax: 1150, grip: 1.05, k: 140, damp: 12, air: 5, I: 1200, fuelTime: 18,
     nitroCap: 1.2, nitroForce: 950, nitroRegen: 0.06,
     head: { x: 0, y: -28, r: 9 }, hit: [[-66, -12], [66, -8], [-14, -32], [16, -32]], flame: [-68, -4],
     stats: [5, 3, 2, 3] },
   rocket: { name: 'Raketen-Auto', price: 10000, upBase: 400, desc: 'Mega-Turbo! Damit fliegst du fast.',
     color: '#f4f4f8', color2: '#e63946',
     wheels: [{ ox: -40, oy: 8, r: 18, rest: 8 }, { ox: 40, oy: 8, r: 18, rest: 8 }],
-    engine: 1900, vmax: 1300, grip: 1.3, k: 110, damp: 11, air: 6, I: 1000, fuelTime: 30,
+    engine: 1900, vmax: 1300, grip: 1.3, k: 110, damp: 11, air: 6, I: 1000, fuelTime: 22,
     nitroCap: 2, nitroForce: 1500, nitroRegen: 0.1,
     head: { x: -10, y: -32, r: 10 }, hit: [[-60, -24], [72, -10], [-62, -46], [-10, -46]], flame: [-70, -10],
     stats: [5, 4, 3, 5] }
@@ -417,13 +459,30 @@ function coinGroup(k) {
 function forCoins(x0, x1, cb) {
   const k0 = Math.max(0, Math.floor((x0 - 1200) / COIN_SP)), k1 = Math.ceil((x1 - 900) / COIN_SP);
   for (let k = k0; k <= k1; k++) for (const c of coinGroup(k)) if (c.x > x0 - 20 && c.x < x1 + 20) cb(c);
+  ground(x1);
+  for (const j of jumpsIn(x0 - 1500, x1)) for (const c of jumpCoins(j)) if (c.x > x0 - 20 && c.x < x1 + 20) cb(c);
+}
+function jumpCoins(j) {
+  if (j.coins) return j.coins;
+  const v = j.mega ? 700 : 600, ang = Math.atan(2 / 2.3), vx = v * Math.cos(ang), vy = v * Math.sin(ang), g = stage.g;
+  const lipY = ground(j.X) - 40, out = [];
+  for (let i = 1; i <= 14; i++) {
+    const t = i * 0.12, x = j.X + vx * t, y = lipY - vy * t + 0.5 * g * t * t;
+    if (y > ground(x) - 40) break;
+    out.push({ id: 'j' + (j.k * 16 + i), x, y, v: i === 5 ? 25 : 5 });
+    if (out.length >= 12) break;
+  }
+  return (j.coins = out);
 }
 let FUEL_XS = [], NITRO_XS = [];
 function buildItems() {
   FUEL_XS = []; NITRO_XS = [];
   let x = START_X + 150 * PX_PER_M;
-  for (let n = 0; n < 400; n++) { FUEL_XS.push(x + hash(n, stage.seed + 3) * 120); x += (180 + n * 35) * PX_PER_M; }
+  for (let n = 0; n < 400; n++) { FUEL_XS.push(x + hash(n, stage.seed + 3) * 120); x += (180 + n * 45) * PX_PER_M; }
   for (let n = 0; n < 400; n++) NITRO_XS.push(START_X + (110 + n * 240 + hash(n, stage.seed + 4) * 80) * PX_PER_M);
+  ground(0);
+  for (const j of JUMPS) if (j.k % 3 === 2) NITRO_XS.push(j.X - j.L - 500); // Turbo vor der Schanze
+  NITRO_XS.sort((a, b) => a - b);
 }
 
 // ---------- Spielzustand ----------
@@ -530,7 +589,13 @@ function physStep(dt) {
 
   // Luftsteuerung
   if (contacts === 0) {
-    if (gas) aa -= P.air; if (brake) aa += P.air;
+    if (brake) aa += P.air; // Salto vorwärts
+    else { // Landehilfe: richtet das Auto zum Boden hin aus
+      let da = c.a - Math.atan(slope(c.x + c.vx * 0.3));
+      da = Math.atan2(Math.sin(da), Math.cos(da));
+      aa -= da * 6 + c.va * 1.5;
+      if (gas) aa -= P.air * 0.5;
+    }
   } else {
     if (gas) aa -= P.air * 0.15; if (brake) aa += P.air * 0.15;
   }
@@ -563,10 +628,10 @@ function landed(c) {
     const bonus = 100 * flips;
     run.coins += bonus; sfx.flip();
     popup(c.x, c.y - 90, (flips > 1 ? flips + 'x ' : '') + 'SALTO! +' + bonus, '#ff5ec4', 1.6);
-  } else if (c.airT > 1.1) {
-    const bonus = Math.round(c.airT * 10);
+  } else if (c.airT > 0.7) {
+    const bonus = Math.round(c.airT * 15);
     run.coins += bonus; sfx.coin();
-    popup(c.x, c.y - 90, 'Super Sprung! +' + bonus, '#3aa0ff', 1.2);
+    popup(c.x, c.y - 90, (c.airT > 1.8 ? 'MEGA-SPRUNG! +' : 'SPRUNG! +') + bonus, '#3aa0ff', 1.3);
   }
 }
 
@@ -847,7 +912,7 @@ function render(t) {
   const layers = moon ? [[0.15, '#2b2b3d', 70], [0.35, '#3d3d52', 45]] : [[0.2, '#8fd3a0', 70], [0.45, '#5fbf72', 45]];
   for (const [f, col, amp] of layers) {
     ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, H);
-    const base = oy + (400 - cam.y) * s * f + 60 * s;
+    const base = oy + (ground(cam.x) - cam.y) * s * f + 60 * s;
     for (let x = 0; x <= W + 20; x += 20) {
       const wx = (x - ox) / s + cam.x * f;
       ctx.lineTo(x, base - (Math.sin(wx * 0.004) * 0.6 + Math.sin(wx * 0.0011 + 2) + 1.4) * amp * s);
@@ -899,6 +964,25 @@ function render(t) {
     }
   }
 
+  // Schanzen
+  for (const j of jumpsIn(x0, x1)) {
+    const xa = j.X - j.L, xb = j.X + j.D;
+    ctx.beginPath();
+    for (let x = xa; x <= xb; x += 6) ctx.lineTo(SX(x), SY(ground(x)));
+    for (let x = xb; x >= xa; x -= 6) ctx.lineTo(SX(x), SY(ground(x) - rampH(x)) + 8 * s);
+    ctx.closePath();
+    ctx.fillStyle = moon ? '#9ea3ba' : '#c68642'; ctx.fill();
+    ctx.save(); ctx.clip();
+    ctx.strokeStyle = moon ? '#7a7f96' : '#8b5a2b'; ctx.lineWidth = 3 * s;
+    for (let x = xa + 30; x < xb; x += 34) { ctx.beginPath(); ctx.moveTo(SX(x), SY(ground(x)) - 40 * s); ctx.lineTo(SX(x), SY(ground(x) - rampH(x)) + 10 * s); ctx.stroke(); }
+    ctx.restore();
+    ctx.beginPath(); for (let x = xa; x <= j.X; x += 6) ctx.lineTo(SX(x), SY(ground(x)));
+    ctx.strokeStyle = moon ? '#e8e8f0' : '#6b3e1c'; ctx.lineWidth = 6 * s; ctx.stroke();
+    // rot-weiße Kante oben
+    const lx = SX(j.X), ly = SY(ground(j.X));
+    for (let i = 0; i < 4; i++) { ctx.fillStyle = i % 2 ? '#fff' : '#e63946'; ctx.fillRect(lx - 8 * s, ly + i * 8 * s - 2 * s, 10 * s, 8 * s); }
+  }
+
   // Start, Meter-Schilder, Rekord-Fahnen
   const sign = (x, label, col, tall) => {
     const gx = SX(x), gy = SY(ground(x)), hgt = (tall ? 130 : 70) * s;
@@ -912,6 +996,7 @@ function render(t) {
     const gx = SX(START_X + 40), gy = SY(ground(START_X + 40));
     for (let i = 0; i < 6; i++) for (let j = 0; j < 2; j++) { ctx.fillStyle = (i + j) % 2 ? '#111' : '#fff'; ctx.fillRect(gx + j * 6 * s, gy - (i + 1) * 6 * s + 6 * s, 6 * s, 6 * s); }
   }
+  for (const j of jumpsIn(x0, x1)) { const sx = j.X - j.L - 220; if (sx > x0 && sx < x1) sign(sx, j.mega ? '🚀 MEGA-SCHANZE!' : '⚠ SPRUNG!', j.mega ? '#e63946' : '#ff9f1c', j.mega); }
   for (let m = Math.max(100, Math.ceil((x0 - START_X) / PX_PER_M / 100) * 100); START_X + m * PX_PER_M < x1; m += 100) sign(START_X + m * PX_PER_M, m + ' m', '#0008', false);
   if (run) {
     if (run.best > 0) { const bx = START_X + run.best * PX_PER_M; if (bx > x0 && bx < x1) sign(bx, '🏁 Rekord ' + run.prof.name, '#e63946', true); }
