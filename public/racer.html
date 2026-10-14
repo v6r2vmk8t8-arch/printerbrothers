@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Printer Brothers Racer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #1a1a1a; font-family: monospace; overflow: hidden; height: 100vh; }
+        canvas { display: block; width: 100%; height: 100%; }
+        .ui { position: absolute; font-size: 12px; color: #ffdd00; font-weight: bold; text-shadow: 0 0 8px rgba(255,221,0,0.6); font-family: monospace; }
+        .hud { top: 20px; left: 20px; }
+        .hud-line { margin: 4px 0; }
+        .controls { bottom: 120px; left: 20px; font-size: 11px; color: #888; }
+        .btn-group { position: absolute; bottom: 130px; right: 20px; display: grid; grid-template-columns: repeat(4, 45px); gap: 6px; }
+        .btn { width: 45px; height: 45px; background: #ffdd00; border: 2px solid #ffdd00; color: #000; font-size: 18px; font-weight: bold; cursor: pointer; border-radius: 3px; }
+        .btn:active { background: #ffaa00; }
+        .bottom-btns { position: absolute; bottom: 20px; right: 20px; gap: 8px; display: flex; }
+        .btn2 { padding: 10px 18px; border: 2px solid; cursor: pointer; font-weight: bold; border-radius: 3px; font-size: 11px; }
+        .jump-btn { background: rgba(68,255,68,0.9); border-color: #44ff44; color: #000; }
+        .jump-btn:active { background: #44ff44; }
+        .cam-btn { background: rgba(100,150,255,0.9); border-color: #6496ff; color: #fff; }
+        .cam-btn:active { background: #6496ff; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div class="ui hud">
+        <div class="hud-line">RACER</div>
+        <div class="hud-line" id="speed">SPEED: 0</div>
+        <div class="hud-line" id="dist">DIST: 0</div>
+        <div class="hud-line" id="alt">ALT: 0</div>
+    </div>
+    <div class="ui controls">
+        <div style="color: #ffdd00; margin-bottom: 6px;">← A  D →</div>
+        <div>↑ W  S ↓</div>
+        <div style="margin-top: 8px;">SPACE: JUMP</div>
+    </div>
+    <div class="btn-group">
+        <div></div><button class="btn" id="up">▲</button><div></div><div></div>
+        <button class="btn" id="left">◄</button><div></div><button class="btn" id="right">►</button><div></div>
+        <div></div><button class="btn" id="down">▼</button><div></div><div></div>
+    </div>
+    <div class="bottom-btns">
+        <button class="btn2 jump-btn" id="jump">JUMP</button>
+        <button class="btn2 cam-btn" id="cam">CAM</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Game vars
+        let carX = canvas.width / 2;
+        let carY = canvas.height * 0.65;
+        let carVx = 0;
+        let carVy = 0;
+        let carSpeed = 0;
+        let carAngle = 0;
+        let distance = 0;
+        let grounded = false;
+
+        // Track
+        const track = [
+            { x: 0, y: 420, w: 800, h: 30, ang: 0 },
+            { x: 0, y: 390, w: 800, h: 30, ang: -0.08 },
+            { x: 0, y: 360, w: 800, h: 30, ang: -0.14 },
+            { x: 0, y: 330, w: 800, h: 30, ang: -0.18 },
+            { x: 0, y: 300, w: 800, h: 30, ang: -0.15 },
+            { x: 0, y: 270, w: 800, h: 30, ang: -0.08 },
+            { x: 0, y: 240, w: 800, h: 30, ang: 0 },
+            { x: 0, y: 210, w: 800, h: 30, ang: 0.08 },
+            { x: 0, y: 180, w: 800, h: 30, ang: 0.1 },
+            { x: 0, y: 150, w: 800, h: 30, ang: 0 },
+            { x: 0, y: 120, w: 800, h: 30, ang: 0 },
+            { x: 0, y: 90, w: 800, h: 30, ang: -0.05 },
+            { x: 0, y: 60, w: 800, h: 30, ang: 0 }
+        ];
+
+        function getTrackY(xp) {
+            for (let i = 0; i < track.length; i++) {
+                if (Math.abs(track[i].x - xp) < track[i].w / 2) {
+                    return { y: track[i].y - 15, angle: track[i].ang };
+                }
+            }
+            return { y: canvas.height, angle: 0 };
+        }
+
+        function update() {
+            // Get inputs
+            const keys = window.gameKeys || {};
+
+            // Accel
+            if (keys['w']) carSpeed = Math.min(carSpeed + 0.6, 10);
+            if (keys['s']) carSpeed = Math.max(carSpeed - 0.6, -5);
+            carSpeed *= 0.96;
+
+            // Steer
+            if (keys['a']) carAngle -= 0.07;
+            if (keys['d']) carAngle += 0.07;
+
+            // Physics
+            carVx = Math.cos(carAngle) * carSpeed;
+            carVy = Math.sin(carAngle) * carSpeed;
+            carVy += 0.35; // gravity
+
+            carX += carVx;
+            carY += carVy;
+
+            // Track collision
+            const trackInfo = getTrackY(carX);
+            if (carY >= trackInfo.y - 9) {
+                carY = trackInfo.y - 9;
+                carVy = 0;
+                grounded = true;
+                carAngle = trackInfo.angle;
+            } else {
+                grounded = false;
+            }
+
+            // Jump
+            if (keys[' '] && grounded) {
+                carVy = -12;
+                grounded = false;
+                keys[' '] = false;
+            }
+
+            // Boundaries
+            if (carX < 50) carX = 50;
+            if (carX > canvas.width - 50) carX = canvas.width - 50;
+
+            // Reset
+            if (carY > canvas.height) {
+                carX = canvas.width / 2;
+                carY = canvas.height * 0.65;
+                carVx = carVy = carSpeed = distance = 0;
+            }
+
+            distance += Math.abs(carSpeed);
+        }
+
+        function draw() {
+            // Sky
+            ctx.fillStyle = '#87ceeb';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Track
+            track.forEach(seg => {
+                ctx.save();
+                ctx.translate(seg.x, seg.y);
+                ctx.rotate(seg.ang);
+                ctx.fillStyle = '#555';
+                ctx.fillRect(-seg.w/2, -seg.h/2, seg.w, seg.h);
+                ctx.strokeStyle = '#888';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(-seg.w/2, -seg.h/2, seg.w, seg.h);
+                ctx.restore();
+            });
+
+            // Walls
+            ctx.fillStyle = '#333';
+            ctx.fillRect(0, 0, 30, canvas.height);
+            ctx.fillRect(canvas.width - 30, 0, 30, canvas.height);
+
+            // Car
+            ctx.save();
+            ctx.translate(carX, carY);
+            ctx.rotate(carAngle);
+            ctx.fillStyle = '#ff2244';
+            ctx.fillRect(-15, -9, 30, 18);
+            ctx.fillStyle = '#222';
+            ctx.fillRect(-10, -12, 4, 4);
+            ctx.fillRect(6, -12, 4, 4);
+            ctx.fillRect(-10, 8, 4, 4);
+            ctx.fillRect(6, 8, 4, 4);
+            ctx.restore();
+
+            // UI
+            ctx.fillStyle = '#ffdd00';
+            ctx.font = 'bold 12px monospace';
+            ctx.fillText('SPEED: ' + Math.round(Math.abs(carSpeed) * 6), 20, 65);
+            ctx.fillText('DIST: ' + Math.round(distance / 8), 20, 80);
+            ctx.fillText('ALT: ' + Math.round(Math.max(0, (canvas.height - carY) / 4)), 20, 95);
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+        }
+
+        // Initialize input
+        window.gameKeys = {};
+
+        // Button setup
+        ['up', 'down', 'left', 'right', 'jump'].forEach(btn => {
+            const el = document.getElementById(btn);
+            if (!el) return;
+            const keyMap = { up: 'w', down: 's', left: 'a', right: 'd', jump: ' ' };
+            const key = keyMap[btn];
+
+            el.addEventListener('mousedown', () => { window.gameKeys[key] = true; });
+            el.addEventListener('mouseup', () => { window.gameKeys[key] = false; });
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); window.gameKeys[key] = true; });
+            el.addEventListener('touchend', (e) => { e.preventDefault(); window.gameKeys[key] = false; });
+        });
+
+        // Camera button
+        document.getElementById('cam').addEventListener('click', () => {
+            alert('Camera toggle (placeholder)');
+        });
+
+        // Keyboard
+        document.addEventListener('keydown', (e) => {
+            window.gameKeys[e.key.toLowerCase()] = true;
+        });
+        document.addEventListener('keyup', (e) => {
+            window.gameKeys[e.key.toLowerCase()] = false;
+        });
+
+        // Start loop
+        setInterval(gameLoop, 1000 / 60);
+
+        // Resize
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    </script>
+</body>
+</html>
