@@ -33,3 +33,14 @@ so steht es dann im Warenkorb.
 ## Passwort ändern
 Netlify → Site configuration → Environment variables → `ADMIN_PASSWORD` bearbeiten
 → danach Deploys → „Trigger deploy“.
+
+## Logo zum Drucken (3d-druck/)
+Drei Modelle, jeweils als einzelne STL pro Farbe (schwarz = Platte, gruen = PB/BROTHERS,
+weiss = Düse/PRINTER) und als `_einfarbig.stl`:
+- `pb-icon_60mm` – PB-Plakette 60 × 60 mm
+- `pb-anhaenger_45mm` – Schlüsselanhänger 45 × 45 mm mit Loch
+- `pb-logo-schild_170mm` – Schild 170 × 46 mm (passt auf den A1 mini)
+
+Mehrfarbig in Bambu Studio: alle drei Farb-STLs eines Modells gleichzeitig hineinziehen →
+„Als ein Objekt mit mehreren Teilen laden?“ mit **Ja** bestätigen → jedem Teil ein Filament zuweisen.
+In Tinkercad die Farb-STLs nacheinander importieren; sie liegen schon passend übereinander.
