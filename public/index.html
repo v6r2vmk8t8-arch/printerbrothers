@@ -434,6 +434,14 @@ header.nav{
   overflow:hidden;
 }
 #workshopScene{ display:block; width:100%; height:340px; }
+.story-poster{
+  display:block; max-width:460px; width:100%; justify-self:center;
+  border-color:var(--filament-line);
+  box-shadow:0 34px 70px -40px var(--shadow), 0 0 60px -30px rgba(57,255,20,0.45);
+  transition:transform .5s var(--ease-out), box-shadow .5s var(--ease-out);
+}
+.story-poster:hover{ transform:translateY(-4px); box-shadow:0 40px 80px -40px var(--shadow), 0 0 70px -26px rgba(57,255,20,0.6); }
+.story-poster img{ display:block; width:100%; height:auto; }
 @media (max-width:640px){ #workshopScene{ height:280px; } }
 
 .story-copy h2{ font-size:clamp(1.9rem, 3.6vw, 2.75rem); margin-bottom:1.4rem; }
@@ -906,9 +914,13 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
   <!-- ==================== WERKSTATT ==================== -->
   <section class="section story" id="werkstatt">
     <div class="wrap story-grid" data-stagger>
-      <div class="story-art reveal">
-        <canvas id="workshopScene"></canvas>
-      </div>
+      <a class="story-art story-poster reveal" href="images/printer-brothers-poster.jpg" target="_blank" rel="noopener">
+        <picture>
+          <source srcset="images/printer-brothers-poster.webp" type="image/webp">
+          <img src="images/printer-brothers-poster.jpg" width="1024" height="1536" loading="lazy"
+               alt="Nathanael und Marlon als Printer Brothers in grün-schwarzen Anzügen mit PB-Logo, vor einer Wand aus Bambu-Lab-Druckern und einer Skyline">
+        </picture>
+      </a>
 
       <div class="story-copy reveal">
         <h2>Ein Drucker, zwei Meinungen, ziemlich viele Prototypen.</h2>
