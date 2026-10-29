@@ -44,3 +44,13 @@ weiss = Düse/PRINTER) und als `_einfarbig.stl`:
 Mehrfarbig in Bambu Studio: alle drei Farb-STLs eines Modells gleichzeitig hineinziehen →
 „Als ein Objekt mit mehreren Teilen laden?“ mit **Ja** bestätigen → jedem Teil ein Filament zuweisen.
 In Tinkercad die Farb-STLs nacheinander importieren; sie liegen schon passend übereinander.
+
+## Druckideen mit Fotos (Kontaktformular)
+Das Formular „Habt ihr eine Druckidee?“ schickt Name, E-Mail, Text und bis zu 4 Fotos an
+**Netlify Forms** (Fotos werden vorher im Browser verkleinert, max. 8 MB pro Anfrage).
+Einmalig in Netlify einrichten:
+1. Projekt öffnen → **Forms** → „Enable form detection“ einschalten → danach Deploys → „Trigger deploy“
+2. **Site configuration → Notifications → Emails and webhooks → Form submission notifications**
+   → „Add notification“ → „Email notification“ → Formular `druckidee`, Adresse eintragen
+Alle Anfragen samt Fotos stehen dann unter **Forms → druckidee**. Antworten einfach an die
+E-Mail-Adresse, die der Kunde angegeben hat.
