@@ -28,7 +28,7 @@ def place_on_bed(mesh):
     return m
 
 
-def check(mesh, name="teil", bed=(256, 256, 256), need_z0=True):
+def check(mesh, name="teil", bed=(180, 180, 180), need_z0=True):
     """Gibt Bericht aus und liefert Liste von Problemen zurück."""
     probs = []
     ext = mesh.extents
@@ -107,7 +107,7 @@ def preview(meshes, path, colors=None):
     print(f"Vorschau: {path}")
 
 
-def export_parts(parts, basepath, write_combined=True, write_preview=True, bed=(256, 256, 256)):
+def export_parts(parts, basepath, write_combined=True, write_preview=True, bed=(180, 180, 180)):
     """parts: {farbname: objekt}. Schreibt <basepath>_<farbe>.stl je Teil,
     bei >1 Teil zusätzlich <basepath>_einfarbig.stl, plus Vorschau-PNG."""
     base = Path(basepath); base.parent.mkdir(parents=True, exist_ok=True)

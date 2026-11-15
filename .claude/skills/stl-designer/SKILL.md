@@ -34,11 +34,24 @@ Falls die Bibliotheken fehlen: `pip install -q build123d trimesh manifold3d matp
 - In Bambu Studio: alle Farb-STLs gleichzeitig importieren → „Als ein Objekt mit mehreren Teilen laden?“ mit **Ja** bestätigen → jedem Teil ein Filament zuweisen. Die Teile sind deckungsgleich positioniert.
 - Quellskript in `3d-druck/src/` mitcommitten.
 
+## Drucker des Nutzers
+
+**Bambu Lab A1 mini** mit **Textured PEI Plate**, 0,4-mm-Düse, AMS lite (max. 4 Farben).
+
+- Bauraum **180 × 180 × 180 mm** (Standard im Hilfsskript). Größere Teile teilen (mit Zapfen/Nut, 0,2 mm Spiel) und das sagen.
+- Max. **4 Farben** pro Teil (AMS lite). Mehr Farben → vereinfachen oder Farbwechsel per Pause vorschlagen.
+- Textured Plate: Die Unterseite bekommt automatisch eine matte, strukturierte Oberfläche – Sichtseiten
+  (z. B. Schilder, Anhänger, Untersetzer) gerne **nach unten** legen. Kein Kleber nötig bei PLA/PETG.
+- Feine Details (Schrift < 8 mm, Linien < 1 mm) **nicht** auf die Unterseite – die Struktur schluckt sie;
+  solche Details oben als Relief modellieren.
+- Bettschlinger (Y-Achse bewegt das Teil): hohe, schmale Teile (Höhe > 3 × Grundfläche) wackeln →
+  breitere Basis, Brim-Empfehlung oder liegend drucken.
+
 ## Druck-Regeln (Bambu Lab, 0,4-mm-Düse, PLA)
 
 | Regel | Wert |
 |---|---|
-| Druckbett | X1C / P1S / P1P / A1: 256 × 256 × 256 mm · A1 mini: 180 × 180 × 180 mm |
+| Druckbett | **A1 mini: 180 × 180 × 180 mm** (zum Vergleich X1C / P1S / A1: 256 mm) |
 | Mindestwandstärke | 1,2 mm (3 Linien), tragend ≥ 2 mm |
 | Kleinste Details / Schrift | Strichstärke ≥ 0,8 mm, Schrifthöhe ≥ 5 mm, Relief 0,6–1,0 mm |
 | Mehrfarb-Schicht oben | ≥ 0,6 mm (3 Lagen à 0,2 mm) |
