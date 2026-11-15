@@ -22,31 +22,31 @@ from stl_tools import check, export_parts, preview  # noqa: E402
 set_circular_segments(96)
 
 # ---------------------------------------------------------------- Parameter
-H = 12.0          # Höhe der Arme (Druck-Z)
+H = 14.0          # Höhe der Arme (Druck-Z)
 G = 0.4           # Spalt zwischen den Klemmflächen (geschlossen)
-W = 7.0           # Breite eines Arms
-XB = 120.0        # Länge Arm B (Gelenkachse bis Spitze) ~ Klemmlänge 112 mm
-OPEN_DEG = 10.0   # Druckstellung: Arm B um 10° geöffnet
+W = 10.0          # Breite eines Arms
+XB = 172.0        # Länge Arm B (Gelenkachse bis Spitze) ~ Klemmlänge 163 mm (1-kg-Beutel)
+OPEN_DEG = 4.0    # Druckstellung: Arm B um 4° geöffnet (diagonal aufs Bett)
 
 # Gelenk (print-in-place, 45°-Kegel statt Brücken)
-R_K = 7.0         # Außenradius der Gelenkscheiben
-R_PIN = 4.0       # Bolzen
+R_K = 8.5         # Außenradius der Gelenkscheiben
+R_PIN = 5.0       # Bolzen (Ø 10 mm)
 CL = 0.4          # radiales Spiel
 GZ = 0.6          # vertikales Spiel an den Kegeln
-Z_A1 = 1.6        # Oberkante untere A-Scheibe (bei R_K)
-Z_B2 = 9.3        # Oberkante B-Scheibe (bei R_K)
+Z_A1 = 2.0        # Oberkante untere A-Scheibe (bei R_K)
+Z_B2 = 11.2       # Oberkante B-Scheibe (bei R_K)
 
 # Schnappverschluss
-FINGER_T = 1.8    # Dicke Federfinger
+FINGER_T = 3.0    # Dicke Federfinger (Dehnung < 0.9 %)
 BARB = 1.2        # Hinterschnitt (Finger-Dehnung < 1 %)
-BULGE = 3.0       # Verstärkung Arm A am Verschluss
+BULGE = 4.0       # Verstärkung Arm A am Verschluss
 
 # Ausgießer
 R_IN = 16.0       # Innenradius (Ø 32 mm Öffnung)
 R_RING = 22.0     # Außenradius Ring auf Armhöhe
 R_TUBE = 18.4     # Außenradius Rohr (Gewindekern)
-Z_TUBE = 24.0     # Oberkante Rohr
-XR = XB + 4.0 + R_RING  # Mitte Ausgießer
+Z_TUBE = H + 12.0 # Oberkante Rohr
+XR = XB + 4.8 + R_RING  # Mitte Ausgießer
 
 # Gewinde (2-gängig, Steigung 10 mm -> ca. halbe Umdrehung zum Schließen)
 TH_DEPTH = 1.2
@@ -172,16 +172,18 @@ def build_clip():
     # --- Arm A (unten, y<0)
     a_main = rect(0, -G / 2 - W, XB, -G / 2) - hole
     y_out = -G / 2 - W - BULGE
-    strip = poly([(XB - 16, -G / 2 - W), (XB - 6, y_out), (XR, y_out), (XR, -G / 2 - W), ])
+    strip = poly([(XB - 22, -G / 2 - W), (XB - 8, y_out), (XR, y_out), (XR, -G / 2 - W), ])
     xf0, xf1 = XB + 0.6, XB + 0.6 + FINGER_T
     yc = G / 2 + W + 0.15                       # Fangkante
     y_tip = yc + 1.9 + 2.6
     finger = rect(xf0, -G / 2 - W - 0.05, xf1, y_tip)
     barb = poly([(xf0 + 0.01, yc), (XB - BARB, yc), (xf0 + 0.01, yc + 1.9)])
-    knob = rounded(rect(xf0, y_tip - 2.4, xf1 + 1.0, y_tip), 0.4)
+    knob = rounded(rect(xf0, y_tip - 3.0, xf1 + 1.2, y_tip), 0.5)
+    root = poly([(xf0 - 0.0, -G / 2 - W + 2.0), (xf0, -G / 2 - W), (XB + 0.05, -G / 2 - W)]) + \
+        poly([(xf1, -G / 2 - W + 1.4), (xf1, -G / 2 - W), (xf1 + 1.4, -G / 2 - W)])
     neck = rect(xf1 + 1.6, y_out, XR, -G / 2)
     ring = circle(R_RING, XR) - circle(R_IN, XR)
-    a_2d = rounded(a_main + strip + neck, 1.0) + finger + barb + knob + ring
+    a_2d = rounded(a_main + strip + neck, 1.0) + finger + barb + knob + root + ring
     a_2d = a_2d - circle(R_IN, XR)
     a_arm = ext(a_2d, H)
     # Anbindung Gelenkscheiben an Arm A (nur unten/oben)
@@ -191,7 +193,7 @@ def build_clip():
 
     # Nut in Klemmfläche A (V-Profil 45°)
     zc = H / 2
-    groove = prism_x([(-G / 2 + 0.3, zc - 1.6), (-G / 2 - 1.3, zc), (-G / 2 + 0.3, zc + 1.6)], R_K + 1.5, XB - 2.0)
+    groove = prism_x([(-G / 2 + 0.3, zc - 1.9), (-G / 2 - 1.6, zc), (-G / 2 + 0.3, zc + 1.9)], R_K + 1.5, XB - 2.0)
     A = A - groove
 
     # Ausgießer-Rohr + Gewinde
@@ -213,7 +215,7 @@ def build_clip():
     b_band2d = (b_2d ^ circle(R_K + CL + 0.5)) - circle(R_K - 0.05)
     b_band = ext(b_band2d, Z_B2 - zb1, zb1)
     B = b_full + b_band + b_hinge
-    rib = prism_x([(G / 2 + 0.3, zc - 1.3), (G / 2 - 1.0, zc), (G / 2 + 0.3, zc + 1.3)], R_K + 3.0, XB - 4.0)
+    rib = prism_x([(G / 2 + 0.3, zc - 1.6), (G / 2 - 1.3, zc), (G / 2 + 0.3, zc + 1.6)], R_K + 3.0, XB - 4.0)
     B = B + rib
 
     A = elephant_foot(A)
@@ -297,15 +299,18 @@ def flip_for_print(m):
 def checks(A, B, base, g, w):
     print("\n== Kollisions-/Spielprüfung ==")
     ok = True
-    for ang in [0, 5, 10, 20, 30]:
+    for ang in [0, 2, 4, 10, 20, 30]:
         Bt = B.rotate((0, 0, ang))
-        inter = (A ^ Bt).volume()
-        # Fangkante am Verschluss hat absichtlich nur 0.15 mm -> separat
-        gap = A.trim_by_plane((-1, 0, 0), -(XB - 2)).min_gap(Bt, 2.0) if ang == 0 else A.min_gap(Bt, 2.0)
+        # Verschlussbereich separat: dort überdeckt der Schnapper beim Einrasten absichtlich
+        rest = A.trim_by_plane((-1, 0, 0), -(XB - 2))
+        inter = (rest ^ Bt).volume()
+        gap = rest.min_gap(Bt, 2.0)
+        latch = (A ^ Bt).volume() - inter
         flag = "OK" if inter < 1e-3 and gap >= 0.3 else "!!"
         if flag == "!!":
             ok = False
-        print(f"  Arm B bei {ang:2d}°: Überschneidung {inter:.4f} mm³, min. Spalt {gap:.2f} mm  {flag}")
+        note = f", Schnapper überdeckt {latch:.1f} mm³ (rastet ein)" if latch > 1e-3 else ""
+        print(f"  Arm B bei {ang:2d}°: Gelenk/Arme Überschneidung {inter:.4f} mm³, min. Spalt {gap:.2f} mm  {flag}{note}")
     # Deckel auf Ausgießer: gibt es eine Drehlage, in der er ganz aufsitzt?
     cap = base + g + w
     z_off = Z_TUBE - CAP_SKIRT_H
@@ -327,22 +332,29 @@ def main():
     checks(A, B, base, g, w)
 
     # Druckanordnung (A1 mini, 180 x 180)
-    clip = A + B.rotate((0, 0, OPEN_DEG))
+    clip = (A + B.rotate((0, 0, OPEN_DEG))).rotate((0, 0, 45))
     bb = clip.bounding_box()
-    clip = clip.translate((3 - bb[0], 3 - bb[1], 0))
+    clip = clip.translate((90 - (bb[0] + bb[3]) / 2, 90 - (bb[1] + bb[4]) / 2, 0))
     bb = clip.bounding_box()
-    print(f"\nKlipp Grundfläche: {bb[3]-bb[0]:.1f} x {bb[4]-bb[1]:.1f} x {bb[5]-bb[2]:.1f} mm")
+    print(f"\nKlipp diagonal: {bb[3]-bb[0]:.1f} x {bb[4]-bb[1]:.1f} x {bb[5]-bb[2]:.1f} mm (Bett 180 x 180)")
 
     capparts = {k: flip_for_print(v) for k, v in {"schwarz": base, "gruen": g, "weiss": w}.items()}
     zmin = min(v.bounding_box()[2] for v in capparts.values())
-    # Deckel rechts oben neben den Klipp
-    dx, dy = 180 - 3 - CAP_PLATE_R, 180 - 3 - CAP_PLATE_R
+    # Deckel in die freie Ecke (größter Abstand zum Klipp)
+    probe = Manifold.cylinder(12, CAP_PLATE_R + 0.5, CAP_PLATE_R + 0.5, 96)
+    best = None
+    for dx, dy in [(3 + CAP_PLATE_R, 177 - CAP_PLATE_R), (177 - CAP_PLATE_R, 3 + CAP_PLATE_R)]:
+        gap = clip.min_gap(probe.translate((dx, dy, 0)), 50)
+        if best is None or gap > best[0]:
+            best = (gap, dx, dy)
+    _, dx, dy = best
+    print(f"Deckel bei ({dx:.0f}, {dy:.0f}), Abstand zum Klipp {best[0]:.1f} mm")
     capparts = {k: v.translate((dx, dy, -zmin)) for k, v in capparts.items()}
     eng = flip_for_print(engraved)
     eng = eng.translate((dx, dy, -eng.bounding_box()[2]))
 
     clip_tm = to_tm(clip)
-    export_parts({"einfarbig": clip_tm}, out / "pb-kaffeeklipp_175mm", bed=(180, 180, 180), write_preview=False)
+    export_parts({"einfarbig": clip_tm}, out / "pb-kaffeeklipp-1kg_235mm", bed=(180, 180, 180), write_preview=False)
     export_parts({k: to_tm(v) for k, v in capparts.items()}, out / "pb-kaffeeklipp-deckel_56mm",
                  write_combined=False, write_preview=False, bed=(180, 180, 180))
     eng_tm = to_tm(eng)
@@ -354,7 +366,7 @@ def main():
              "gruen": to_tm(capparts["gruen"]), "weiss": to_tm(capparts["weiss"])}
     allm = trimesh.util.concatenate(list(plate.values()))
     print(f"\nDruckplatte gesamt: {np.round(allm.bounds[0],1)} .. {np.round(allm.bounds[1],1)}")
-    preview(plate, out / "pb-kaffeeklipp_vorschau.png",
+    preview(plate, out / "pb-kaffeeklipp-1kg_vorschau.png",
             colors={"schwarz": "#2b2b2b", "deckel": "#2b2b2b", "gruen": "#39ff14", "weiss": "#ededed"})
 
     # Montiert (geschlossen, Deckel drauf) – nur Vorschau
@@ -363,7 +375,7 @@ def main():
     asm = {"klipp": to_tm(A + B)}
     for k, v in cap_up.items():
         v = v.copy(); v.apply_translation((XR, 0, z_off)); asm[k] = v
-    preview(asm, out / "pb-kaffeeklipp_montiert.png",
+    preview(asm, out / "pb-kaffeeklipp-1kg_montiert.png",
             colors={"klipp": "#2b2b2b", "deckel": "#3a3a3a", "gruen": "#39ff14", "weiss": "#ededed"})
 
 
