@@ -25,7 +25,8 @@ set_circular_segments(96)
 H = 14.0          # Höhe der Arme (Druck-Z)
 G = 0.4           # Spalt zwischen den Klemmflächen (geschlossen)
 W = 10.0          # Breite eines Arms
-XB = 172.0        # Länge Arm B (Gelenkachse bis Spitze) ~ Klemmlänge 163 mm (1-kg-Beutel)
+XR = 165.0        # Mitte Ausgießer (sitzt in der Klemmlinie, Beutelecke liegt im Ring)
+XB = XR + 32.0    # Spitze Arm B (hinter dem Ring)
 OPEN_DEG = 4.0    # Druckstellung: Arm B um 4° geöffnet (diagonal aufs Bett)
 
 # Gelenk (print-in-place, 45°-Kegel statt Brücken)
@@ -36,17 +37,17 @@ GZ = 0.6          # vertikales Spiel an den Kegeln
 Z_A1 = 2.0        # Oberkante untere A-Scheibe (bei R_K)
 Z_B2 = 11.2       # Oberkante B-Scheibe (bei R_K)
 
-# Schnappverschluss
-FINGER_T = 3.0    # Dicke Federfinger (Dehnung < 0.9 %)
-BARB = 1.2        # Hinterschnitt (Finger-Dehnung < 1 %)
-BULGE = 4.0       # Verstärkung Arm A am Verschluss
+# Schnappverschluss (am Ende hinter dem Ausgießer, eingerahmt von massivem Endblock)
+FINGER_T = 2.6    # Federfinger, freie Länge ~21 mm -> Dehnung < 0.9 %
+BARB = 1.2        # Fangnase ragt 1.2 mm über die Spitze von Arm B
+BULGE = 6.0       # Verstärkungsbalken unter dem Finger (6 x 14 mm)
+END_L = 14.0      # Länge Endblock hinter Arm B
 
 # Ausgießer
 R_IN = 16.0       # Innenradius (Ø 32 mm Öffnung)
 R_RING = 22.0     # Außenradius Ring auf Armhöhe
 R_TUBE = 18.4     # Außenradius Rohr (Gewindekern)
 Z_TUBE = H + 12.0 # Oberkante Rohr
-XR = XB + 4.8 + R_RING  # Mitte Ausgießer
 
 # Gewinde (2-gängig, Steigung 10 mm -> ca. halbe Umdrehung zum Schließen)
 TH_DEPTH = 1.2
@@ -161,6 +162,11 @@ def elephant_foot(m, inset=0.25, h=0.4):
 # ---------------------------------------------------------------- Klipp
 def build_clip():
     hole = circle(R_K + CL)
+    spout_hole = circle(R_IN, XR)
+    y_a = -G / 2 - W          # Außenkante Arm A
+    y_b = G / 2 + W           # Außenkante Arm B
+    half_a = rect(-50, -100, 400, -G / 2)
+    half_b = rect(-50, G / 2, 400, 100)
 
     # --- Gelenk
     a_hinge = revolve_profile([(0, 0), (R_K, 0), (R_K, Z_A1), (R_PIN, Z_A1 + (R_K - R_PIN)),
@@ -169,54 +175,61 @@ def build_clip():
     rh = R_PIN + CL
     b_hinge = revolve_profile([(rh, zb1 + (R_K - rh)), (R_K, zb1), (R_K, Z_B2), (rh, Z_B2 - (R_K - rh))])
 
-    # --- Arm A (unten, y<0)
-    a_main = rect(0, -G / 2 - W, XB, -G / 2) - hole
-    y_out = -G / 2 - W - BULGE
-    strip = poly([(XB - 22, -G / 2 - W), (XB - 8, y_out), (XR, y_out), (XR, -G / 2 - W), ])
+    # --- Arm A (y<0): Arm + halber Ausgießer-Ring + Verstärkung + Endblock
+    y_out = y_a - BULGE
     xf0, xf1 = XB + 0.6, XB + 0.6 + FINGER_T
-    yc = G / 2 + W + 0.15                       # Fangkante
-    y_tip = yc + 1.9 + 2.6
-    finger = rect(xf0, -G / 2 - W - 0.05, xf1, y_tip)
+    x_blk = xf1 + 1.6
+    x_end = XB + END_L
+    base = rect(0, y_a, x_end, -G / 2)
+    base = base + (circle(R_RING, XR) ^ half_a)
+    base = base + poly([(XB - 16, y_a), (XB - 4, y_out), (x_end, y_out), (x_end, y_a)])
+    base = base + rect(x_blk, y_out, x_end, y_b - 2.0)
+    base = base.offset(3.0, JoinType.Round).offset(-3.0, JoinType.Round)   # Hohlkehlen
+    base = rounded(base, 1.5) ^ (half_a + rect(x_blk - 1, -100, 400, 100))
+    # Tasche für den Federfinger (Finger hängt nur am 6-mm-Balken)
+    base = base - rect(XB, y_a, x_blk, 100)
+    yc = y_b + 0.15                                # Fangkante
+    y_tip = yc + 1.9 + 3.0
+    finger = rect(xf0, y_a - 0.05, xf1, y_tip)
     barb = poly([(xf0 + 0.01, yc), (XB - BARB, yc), (xf0 + 0.01, yc + 1.9)])
     knob = rounded(rect(xf0, y_tip - 3.0, xf1 + 1.2, y_tip), 0.5)
-    root = poly([(xf0 - 0.0, -G / 2 - W + 2.0), (xf0, -G / 2 - W), (XB + 0.05, -G / 2 - W)]) + \
-        poly([(xf1, -G / 2 - W + 1.4), (xf1, -G / 2 - W), (xf1 + 1.4, -G / 2 - W)])
-    neck = rect(xf1 + 1.6, y_out, XR, -G / 2)
-    ring = circle(R_RING, XR) - circle(R_IN, XR)
-    a_2d = rounded(a_main + strip + neck, 1.0) + finger + barb + knob + root + ring
-    a_2d = a_2d - circle(R_IN, XR)
-    a_arm = ext(a_2d, H)
-    # Anbindung Gelenkscheiben an Arm A (nur unten/oben)
-    a_band2d = (rect(0, -G / 2 - W, R_K + CL + 1, -G / 2) - circle(R_K - 0.05)) ^ circle(R_K + CL + 1)
+    fillets = poly([(xf0, y_a + 1.6), (xf0, y_a + 0.01), (XB + 0.05, y_a + 0.01)]) + \
+        poly([(xf1, y_a + 1.4), (xf1, y_a + 0.01), (xf1 + 1.4, y_a + 0.01)])
+    a_2d = base + finger + barb + knob + fillets - spout_hole
+    a_arm = ext(a_2d - hole, H)
+    a_band2d = (rect(0, y_a, R_K + CL + 1, -G / 2) - circle(R_K - 0.05)) ^ circle(R_K + CL + 1)
     a_band = ext(a_band2d, Z_A1) + ext(a_band2d, H - Z_B2 - GZ, Z_B2 + GZ)
     A = a_arm + a_hinge + a_band
 
-    # Nut in Klemmfläche A (V-Profil 45°)
-    zc = H / 2
-    groove = prism_x([(-G / 2 + 0.3, zc - 1.9), (-G / 2 - 1.6, zc), (-G / 2 + 0.3, zc + 1.9)], R_K + 1.5, XB - 2.0)
-    A = A - groove
-
-    # Ausgießer-Rohr + Gewinde
-    tube = ext(circle(R_TUBE) - circle(R_IN), Z_TUBE - H, H).translate((XR, 0, 0))
-    th = thread(R_TUBE, TH_DEPTH, H + 2.2, Z_TUBE - 2.6).translate((XR, 0, 0))
-    A = A + tube + th
-    # Fasen: Innenkante unten (Folie schonen) + Rohr-Oberkante
-    cham_in = revolve_profile([(R_IN - 0.01, -0.01), (R_IN + 1.2, -0.01), (R_IN - 0.01, 1.2)]).translate((XR, 0, 0))
-    cham_top = revolve_profile([(R_IN - 0.01, Z_TUBE + 0.01), (R_IN + 0.8, Z_TUBE + 0.01), (R_IN - 0.01, Z_TUBE - 0.8)]).translate((XR, 0, 0))
-    cham_out = revolve_profile([(R_TUBE + 0.01, Z_TUBE + 0.01), (R_TUBE - 0.8, Z_TUBE + 0.01), (R_TUBE + 0.01, Z_TUBE - 0.8)]).translate((XR, 0, 0))
-    A = A - cham_in - cham_top - cham_out
-
-    # --- Arm B (oben, y>0)
-    b_2d = rect(0, G / 2, XB, G / 2 + W)
-    b_2d = rounded(b_2d, 1.0)
-    # Spitze außen anfasen (Einlauf für Schnapper)
-    b_2d = b_2d - poly([(XB - 1.2, G / 2 + W + 1), (XB + 1, G / 2 + W + 1), (XB + 1, G / 2 + W - 1.2)])
+    # --- Arm B (y>0): Arm + halber Ausgießer-Ring
+    bb2 = rect(0, G / 2, XB, y_b) + (circle(R_RING, XR) ^ half_b)
+    bb2 = bb2.offset(3.0, JoinType.Round).offset(-3.0, JoinType.Round)
+    bb2 = rounded(bb2, 1.5) ^ rect(-50, G / 2, XB, 100)
+    # Spitze außen scharfkantig (Fangfläche), nur 0.3 mm Fase
+    bb2 = bb2 + (rect(XB - 6, G / 2 + 1.5, XB, y_b) - poly([(XB - 0.3, y_b + 1), (XB + 1, y_b + 1), (XB + 1, y_b - 0.3 - 1.3), (XB, y_b - 0.3)]))
+    b_2d = bb2 - spout_hole
     b_full = ext(b_2d - hole, H)
     b_band2d = (b_2d ^ circle(R_K + CL + 0.5)) - circle(R_K - 0.05)
     b_band = ext(b_band2d, Z_B2 - zb1, zb1)
     B = b_full + b_band + b_hinge
-    rib = prism_x([(G / 2 + 0.3, zc - 1.6), (G / 2 - 1.3, zc), (G / 2 + 0.3, zc + 1.6)], R_K + 3.0, XB - 4.0)
+
+    # --- Klemmprofil: V-Nut in A, V-Rippe an B (nicht im Ausgießer-Loch)
+    zc = H / 2
+    no_hole = ext(circle(R_IN + 0.6, XR), H + 2, -1)
+    groove = prism_x([(-G / 2 + 0.3, zc - 1.9), (-G / 2 - 1.6, zc), (-G / 2 + 0.3, zc + 1.9)], R_K + 1.5, XB - 2.0)
+    rib = prism_x([(G / 2 + 0.3, zc - 1.6), (G / 2 - 1.3, zc), (G / 2 + 0.3, zc + 1.6)], R_K + 3.0, XB - 4.0) - no_hole
+    A = A - groove
     B = B + rib
+
+    # --- Ausgießer-Rohr mit Gewinde, in zwei Hälften geteilt
+    tube = ext(circle(R_TUBE) - circle(R_IN), Z_TUBE - H + 0.05, H - 0.05)
+    tube = (tube + thread(R_TUBE, TH_DEPTH, H + 2.2, Z_TUBE - 2.6)).translate((XR, 0, 0))
+    cham = (revolve_profile([(R_IN - 0.01, -0.01), (R_IN + 1.2, -0.01), (R_IN - 0.01, 1.2)])
+            + revolve_profile([(R_IN - 0.01, Z_TUBE + 0.01), (R_IN + 0.8, Z_TUBE + 0.01), (R_IN - 0.01, Z_TUBE - 0.8)])
+            + revolve_profile([(R_TUBE + 0.01, Z_TUBE + 0.01), (R_TUBE - 0.8, Z_TUBE + 0.01), (R_TUBE + 0.01, Z_TUBE - 0.8)])
+            ).translate((XR, 0, 0))
+    A = A + (tube ^ ext(half_a, 60, -5)) - cham
+    B = B + (tube ^ ext(half_b, 60, -5)) - cham
 
     A = elephant_foot(A)
     B = elephant_foot(B)
@@ -302,7 +315,7 @@ def checks(A, B, base, g, w):
     for ang in [0, 2, 4, 10, 20, 30]:
         Bt = B.rotate((0, 0, ang))
         # Verschlussbereich separat: dort überdeckt der Schnapper beim Einrasten absichtlich
-        rest = A.trim_by_plane((-1, 0, 0), -(XB - 2))
+        rest = A.trim_by_plane((-1, 0, 0), -(XB - 3))
         inter = (rest ^ Bt).volume()
         gap = rest.min_gap(Bt, 2.0)
         latch = (A ^ Bt).volume() - inter
@@ -313,6 +326,7 @@ def checks(A, B, base, g, w):
         print(f"  Arm B bei {ang:2d}°: Gelenk/Arme Überschneidung {inter:.4f} mm³, min. Spalt {gap:.2f} mm  {flag}{note}")
     # Deckel auf Ausgießer: gibt es eine Drehlage, in der er ganz aufsitzt?
     cap = base + g + w
+    A = A + B          # beide Rohrhälften
     z_off = Z_TUBE - CAP_SKIRT_H
     best = None
     for phi in range(0, 180, 6):
@@ -354,7 +368,7 @@ def main():
     eng = eng.translate((dx, dy, -eng.bounding_box()[2]))
 
     clip_tm = to_tm(clip)
-    export_parts({"einfarbig": clip_tm}, out / "pb-kaffeeklipp-1kg_235mm", bed=(180, 180, 180), write_preview=False)
+    export_parts({"einfarbig": clip_tm}, out / "pb-kaffeeklipp-1kg_220mm", bed=(180, 180, 180), write_preview=False)
     export_parts({k: to_tm(v) for k, v in capparts.items()}, out / "pb-kaffeeklipp-deckel_56mm",
                  write_combined=False, write_preview=False, bed=(180, 180, 180))
     eng_tm = to_tm(eng)
