@@ -16,7 +16,15 @@ die direkt in Bambu Studio geladen werden können.
   - `export_parts({"farbe": objekt, ...}, "3d-druck/<name>_<größe>")` → STL je Farbe, `_einfarbig.stl`, `_vorschau.png`, Druckbarkeits-Check
   - `python3 .claude/skills/stl-designer/scripts/stl_tools.py datei.stl` → bestehende STL prüfen
 
-Falls die Bibliotheken fehlen: `pip install -q build123d trimesh manifold3d matplotlib`
+Falls die Bibliotheken fehlen: `pip install -q build123d trimesh manifold3d matplotlib shapely networkx`
+
+**Alternative für mechanische Teile: manifold3d direkt** (schnell, robust, siehe `3d-druck/src/pb_kaffeeklipp.py` als Vorlage):
+2D-Konturen mit `CrossSection` (offset/rounding), `Manifold.extrude/revolve`, Booleans, Gewinde als
+Helix-Mesh, Spielprüfung mit `a.min_gap(b, 2.0)` und Kollision mit `(a ^ b).volume()`.
+- Manifold → trimesh immer mit `process=False` (sonst werden Punkte verschmolzen und das Mesh undicht).
+- Teile, die sich nur flächig berühren, verschmelzen nicht → immer ≥ 0,05 mm überlappen lassen; mit
+  `len(m.decompose()) == 1` prüfen.
+- SVG-Logos mit nur M/L/Z-Pfaden direkt per Regex einlesen (y = Höhe − y), in `CrossSection` umwandeln.
 
 ## Ablauf
 
@@ -46,6 +54,14 @@ Falls die Bibliotheken fehlen: `pip install -q build123d trimesh manifold3d matp
   solche Details oben als Relief modellieren.
 - Bettschlinger (Y-Achse bewegt das Teil): hohe, schmale Teile (Höhe > 3 × Grundfläche) wackeln →
   breitere Basis, Brim-Empfehlung oder liegend drucken.
+
+## Bewegliche Teile (print-in-place)
+
+- Gelenk mit senkrechter Achse: Scheiben mit **45°-Kegeln** statt flacher Flächen stapeln (keine Brücken),
+  0,4 mm radiales und 0,6 mm vertikales Spiel; Kollision in mehreren Winkelstellungen prüfen.
+- Schnapper: Federfinger ≥ 15 mm frei, Dehnung 1,5·t·δ/L² < 1 % (PLA), Hinterschnitt ≥ 1 mm.
+- Gewinde für Schraubdeckel: 2-gängig (Steigung 10 mm → ca. ½ Umdrehung), Flanken ≥ 45°, 0,5 mm Spiel.
+- Mehrfarbige Logos auf Deckeln: Logo-Seite nach unten, bündiges Inlay 0,6 mm → Farbwechsel nur in 3 Schichten.
 
 ## Druck-Regeln (Bambu Lab, 0,4-mm-Düse, PLA)
 
