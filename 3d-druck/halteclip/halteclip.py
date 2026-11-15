@@ -69,7 +69,7 @@ outline = outline - slot(L - LANGLOCH_RAND_X - LANGLOCH_L, LANGLOCH_RAND_Y,
 platte = Manifold.extrude(outline, T)
 
 # ---------------- Steg (U-Profil, öffnet zur Plattenkante hin) ----------------
-# Rücken innen, Seitenwände reichen bis zur Kante (bündig), Rippen außen im U.
+# Rücken innen, Seitenwände reichen bis zur Kante (bündig), Rippen auf der Innenseite.
 x0, x1 = (L - STEG_B) / 2, (L + STEG_B) / 2
 y_kante = B                                 # Seitenwände bündig mit der Plattenkante
 y_ruecken_aussen = y_kante - FLANSCH_H      # Außenfläche Rücken (Rippenseite)
@@ -85,11 +85,11 @@ flansch_r = box(x1 - FLANSCH_B, y_ruecken_aussen - 0.01, z0, x1, y_kante, GESAMT
 rippen = []
 z = RIPPEN_ZONE[0]
 while z + RIPPEN_TEILUNG / 2 <= RIPPEN_ZONE[1]:
-    # Trapezrippe auf der Außenseite des Rückens (Profil gegen den Uhrzeigersinn)
-    rippen.append(prism_yz([(y_ruecken_aussen - 0.01, z),
-                            (y_ruecken_aussen + RIPPEN_H, z + RIPPEN_TEILUNG * 0.25),
-                            (y_ruecken_aussen + RIPPEN_H, z + RIPPEN_TEILUNG * 0.5),
-                            (y_ruecken_aussen - 0.01, z + RIPPEN_TEILUNG * 0.75)],
+    # Trapezrippe auf der Innenseite des Rückens (Richtung Langlöcher, gegen Uhrzeigersinn)
+    rippen.append(prism_yz([(y_innen + 0.01, z + RIPPEN_TEILUNG * 0.75),
+                            (y_innen - RIPPEN_H, z + RIPPEN_TEILUNG * 0.5),
+                            (y_innen - RIPPEN_H, z + RIPPEN_TEILUNG * 0.25),
+                            (y_innen + 0.01, z)],
                            x0 + FLANSCH_B + RIPPEN_RAND, x1 - FLANSCH_B - RIPPEN_RAND))
     z += RIPPEN_TEILUNG
 
