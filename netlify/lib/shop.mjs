@@ -42,6 +42,17 @@ const hash = (s) => createHash("sha256").update(String(s)).digest();
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export async function checkAuth(req) {
+  // Optional: eigener API-Schlüssel (z. B. für Claude), unabhängig vom Admin-Passwort.
+  // Netlify-Variable ADMIN_API_TOKEN (mind. 24 Zeichen); Aufruf mit "Authorization: Bearer <Schlüssel>".
+  // Löschen der Variable (+ neu deployen) sperrt den Schlüssel sofort.
+  const token = process.env.ADMIN_API_TOKEN || "";
+  const bearer = (req.headers.get("authorization") || "").match(/^Bearer\s+(.+)$/i)?.[1]?.trim() || "";
+  if (token.length >= 24 && bearer) {
+    if (timingSafeEqual(hash(bearer), hash(token))) return null; // alles ok
+    await sleep(800);
+    return json({ error: "Falscher API-Schlüssel." }, 401);
+  }
+
   const pw = process.env.ADMIN_PASSWORD || "";
   if (pw.length < 8) return json({ error: "Am Server ist noch kein Admin-Passwort (mind. 8 Zeichen) eingerichtet." }, 503);
   const given = req.headers.get("x-admin-password") || "";
