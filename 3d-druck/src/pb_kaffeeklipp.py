@@ -25,8 +25,6 @@ set_circular_segments(96)
 H = 14.0          # Höhe der Arme (Druck-Z)
 G = 0.4           # Spalt zwischen den Klemmflächen (geschlossen)
 W = 10.0          # Breite eines Arms
-XR = 165.0        # Mitte Ausgießer (sitzt in der Klemmlinie, Beutelecke liegt im Ring)
-XB = XR + 32.0    # Spitze Arm B (hinter dem Ring)
 OPEN_DEG = 4.0    # Druckstellung: Arm B um 4° geöffnet (diagonal aufs Bett)
 
 # Gelenk (print-in-place, 45°-Kegel statt Brücken)
@@ -43,11 +41,17 @@ BARB = 1.2        # Fangnase ragt 1.2 mm über die Spitze von Arm B
 BULGE = 6.0       # Verstärkungsbalken unter dem Finger (6 x 14 mm)
 END_L = 14.0      # Länge Endblock hinter Arm B
 
-# Ausgießer
-R_IN = 16.0       # Innenradius (Ø 32 mm Öffnung)
-R_RING = 22.0     # Außenradius Ring auf Armhöhe
-R_TUBE = 18.4     # Außenradius Rohr (Gewindekern)
-Z_TUBE = H + 12.0 # Oberkante Rohr
+# Klemmring + Hülse (Folie wird rundum zwischen Hülse und Ring eingespannt)
+R_SL_IN = 15.0    # Hülse innen (Ø 30 mm Öffnung)
+R_TUBE = 17.4     # Hülse außen = Gewindekern
+FILM = 0.4        # radialer Spalt für die Beutelfolie
+R_CUP = R_TUBE + FILM   # Ring innen
+R_RING = 24.0     # Ring außen
+RIDGE_H = 0.9     # Halterippen auf der Hülse
+RIDGE_Z = (4.5, 9.5)
+SL_TOP = H + 12.0 # Oberkante Hülse
+XR = 165.0        # Mitte Ring (Beutelecke) – Klemmlänge bis zur Ecke ~ 160 mm
+XB = XR + 34.0    # Spitze Arm B (hinter dem Ring)
 
 # Gewinde (2-gängig, Steigung 10 mm -> ca. halbe Umdrehung zum Schließen)
 TH_DEPTH = 1.2
@@ -162,7 +166,7 @@ def elephant_foot(m, inset=0.25, h=0.4):
 # ---------------------------------------------------------------- Klipp
 def build_clip():
     hole = circle(R_K + CL)
-    spout_hole = circle(R_IN, XR)
+    spout_hole = circle(R_CUP, XR)
     y_a = -G / 2 - W          # Außenkante Arm A
     y_b = G / 2 + W           # Außenkante Arm B
     half_a = rect(-50, -100, 400, -G / 2)
@@ -215,25 +219,38 @@ def build_clip():
 
     # --- Klemmprofil: V-Nut in A, V-Rippe an B (nicht im Ausgießer-Loch)
     zc = H / 2
-    no_hole = ext(circle(R_IN + 0.6, XR), H + 2, -1)
+    no_hole = ext(circle(R_CUP + 0.6, XR), H + 2, -1)
     groove = prism_x([(-G / 2 + 0.3, zc - 1.9), (-G / 2 - 1.6, zc), (-G / 2 + 0.3, zc + 1.9)], R_K + 1.5, XB - 2.0)
     rib = prism_x([(G / 2 + 0.3, zc - 1.6), (G / 2 - 1.3, zc), (G / 2 + 0.3, zc + 1.6)], R_K + 3.0, XB - 4.0) - no_hole
     A = A - groove
     B = B + rib
 
-    # --- Ausgießer-Rohr mit Gewinde, in zwei Hälften geteilt
-    tube = ext(circle(R_TUBE) - circle(R_IN), Z_TUBE - H + 0.05, H - 0.05)
-    tube = (tube + thread(R_TUBE, TH_DEPTH, H + 2.2, Z_TUBE - 2.6)).translate((XR, 0, 0))
-    cham = (revolve_profile([(R_IN - 0.01, -0.01), (R_IN + 1.2, -0.01), (R_IN - 0.01, 1.2)])
-            + revolve_profile([(R_IN - 0.01, Z_TUBE + 0.01), (R_IN + 0.8, Z_TUBE + 0.01), (R_IN - 0.01, Z_TUBE - 0.8)])
-            + revolve_profile([(R_TUBE + 0.01, Z_TUBE + 0.01), (R_TUBE - 0.8, Z_TUBE + 0.01), (R_TUBE + 0.01, Z_TUBE - 0.8)])
-            ).translate((XR, 0, 0))
-    A = A + (tube ^ ext(half_a, 60, -5)) - cham
-    B = B + (tube ^ ext(half_b, 60, -5)) - cham
+    # --- Nuten für die Halterippen der Hülse + Einlauffasen (beide Ringhälften)
+    cut = Manifold()
+    for zr in RIDGE_Z:
+        d = RIDGE_H + 0.45
+        cut = cut + revolve_profile([(R_CUP - 0.01, zr - d - 0.2), (R_CUP + d, zr), (R_CUP - 0.01, zr + d + 0.2)])
+    cut = cut + revolve_profile([(R_CUP - 0.01, -0.01), (R_CUP + 1.2, -0.01), (R_CUP - 0.01, 1.2)])
+    cut = cut + revolve_profile([(R_CUP - 0.01, H + 0.01), (R_CUP + 1.2, H + 0.01), (R_CUP - 0.01, H - 1.2)])
+    cut = cut.translate((XR, 0, 0))
+    A = A - cut
+    B = B - cut
 
     A = elephant_foot(A)
     B = elephant_foot(B)
     return A, B
+
+
+# ---------------------------------------------------------------- Hülse
+def build_sleeve():
+    """Hülse in Einbaulage (Unterkante z=0 = Unterkante Klipp)."""
+    sl = revolve_profile([(R_SL_IN, 0), (R_TUBE - 0.8, 0), (R_TUBE, 0.8), (R_TUBE, SL_TOP - 0.8),
+                          (R_TUBE - 0.8, SL_TOP), (R_SL_IN + 0.8, SL_TOP), (R_SL_IN, SL_TOP - 0.8),
+                          (R_SL_IN, 0.8), (R_SL_IN + 0.8, 0)][::-1])
+    for zr in RIDGE_Z:
+        sl = sl + revolve_profile([(R_TUBE - 0.2, zr - RIDGE_H - 0.2), (R_TUBE + RIDGE_H, zr), (R_TUBE - 0.2, zr + RIDGE_H + 0.2)])
+    sl = sl + thread(R_TUBE, TH_DEPTH, H + 2.6, SL_TOP - 2.6)
+    return sl
 
 
 # ---------------------------------------------------------------- Logo
@@ -309,88 +326,97 @@ def flip_for_print(m):
 
 
 # ---------------------------------------------------------------- Prüfungen
-def checks(A, B, base, g, w):
+def checks(A, B, sleeve, base, g, w):
     print("\n== Kollisions-/Spielprüfung ==")
     ok = True
+    sl = sleeve.translate((XR, 0, 0))
     for ang in [0, 2, 4, 10, 20, 30]:
         Bt = B.rotate((0, 0, ang))
         # Verschlussbereich separat: dort überdeckt der Schnapper beim Einrasten absichtlich
         rest = A.trim_by_plane((-1, 0, 0), -(XB - 3))
-        inter = (rest ^ Bt).volume()
-        gap = rest.min_gap(Bt, 2.0)
-        latch = (A ^ Bt).volume() - inter
+        inter = (rest ^ Bt).volume() + (sl ^ Bt).volume()
+        gap = min(rest.min_gap(Bt, 2.0), sl.min_gap(Bt, 2.0))
+        latch = (A ^ Bt).volume() - (rest ^ Bt).volume()
         flag = "OK" if inter < 1e-3 and gap >= 0.3 else "!!"
-        if flag == "!!":
-            ok = False
+        ok &= flag == "OK"
         note = f", Schnapper überdeckt {latch:.1f} mm³ (rastet ein)" if latch > 1e-3 else ""
-        print(f"  Arm B bei {ang:2d}°: Gelenk/Arme Überschneidung {inter:.4f} mm³, min. Spalt {gap:.2f} mm  {flag}{note}")
-    # Deckel auf Ausgießer: gibt es eine Drehlage, in der er ganz aufsitzt?
+        print(f"  Arm B bei {ang:2d}° (Hülse eingesetzt): Überschneidung {inter:.4f} mm³, min. Spalt {gap:.2f} mm  {flag}{note}")
+    v = (sl ^ A).volume()
+    gap_sl = min(sl.min_gap(A, 2.0), sl.min_gap(B, 2.0))
+    print(f"  Hülse im Ring: Überschneidung {v:.4f} mm³, Folienspalt {gap_sl:.2f} mm  {'OK' if v < 1e-3 and gap_sl >= 0.3 else '!!'}")
     cap = base + g + w
-    A = A + B          # beide Rohrhälften
-    z_off = Z_TUBE - CAP_SKIRT_H
+    z_off = SL_TOP - CAP_SKIRT_H
     best = None
     for phi in range(0, 180, 6):
         c = cap.rotate((0, 0, phi)).translate((XR, 0, z_off + 0.05))
-        v = (A ^ c).volume()
+        v = (sl ^ c).volume() + ((A + B) ^ c).volume()
         best = min(best, (v, phi)) if best else (v, phi)
-    print(f"  Deckel aufgeschraubt: min. Überschneidung {best[0]:.4f} mm³ (bei {best[1]}°)  {'OK' if best[0] < 1e-3 else '!!'}")
-    c = cap.rotate((0, 0, best[1])).translate((XR, 0, z_off + 0.05))
-    print(f"  Deckel-Gewindespiel: {A.min_gap(c, 3.0):.2f} mm")
+    print(f"  Deckel auf Hülse: min. Überschneidung {best[0]:.4f} mm³  {'OK' if best[0] < 1e-3 else '!!'}")
     return ok and best[0] < 1e-3
+
+
+def place_free(clip, r, taken=()):
+    """Freie Ecke für ein rundes Teil (Radius r) suchen."""
+    probe = Manifold.cylinder(12, r + 0.5, r + 0.5, 96)
+    best = None
+    for x in np.arange(3 + r, 178 - r, 2.0):
+        for y in np.arange(3 + r, 178 - r, 2.0):
+            if any(np.hypot(x - tx, y - ty) < r + tr + 4 for tx, ty, tr in taken):
+                continue
+            gap = clip.min_gap(probe.translate((x, y, 0)), 6)
+            if gap >= 4 and (best is None or np.hypot(x - 90, y - 90) > best[0]):
+                best = (np.hypot(x - 90, y - 90), x, y)
+    return best[1], best[2]
 
 
 def main():
     out = ROOT / "3d-druck"
     A, B = build_clip()
+    sleeve = build_sleeve()
     base, g, w, engraved = build_cap()
-    checks(A, B, base, g, w)
+    checks(A, B, sleeve, base, g, w)
 
-    # Druckanordnung (A1 mini, 180 x 180)
+    # Druckanordnung (A1 mini, 180 x 180): Klipp diagonal, Deckel + Hülse in die freien Ecken
     clip = (A + B.rotate((0, 0, OPEN_DEG))).rotate((0, 0, 45))
     bb = clip.bounding_box()
     clip = clip.translate((90 - (bb[0] + bb[3]) / 2, 90 - (bb[1] + bb[4]) / 2, 0))
     bb = clip.bounding_box()
     print(f"\nKlipp diagonal: {bb[3]-bb[0]:.1f} x {bb[4]-bb[1]:.1f} x {bb[5]-bb[2]:.1f} mm (Bett 180 x 180)")
+    cx, cy = place_free(clip, CAP_PLATE_R)
+    r_sl = R_TUBE + TH_DEPTH + RIDGE_H
+    sx, sy = place_free(clip, r_sl, taken=[(cx, cy, CAP_PLATE_R)])
+    print(f"Deckel bei ({cx:.0f}, {cy:.0f}), Hülse bei ({sx:.0f}, {sy:.0f})")
 
     capparts = {k: flip_for_print(v) for k, v in {"schwarz": base, "gruen": g, "weiss": w}.items()}
     zmin = min(v.bounding_box()[2] for v in capparts.values())
-    # Deckel in die freie Ecke (größter Abstand zum Klipp)
-    probe = Manifold.cylinder(12, CAP_PLATE_R + 0.5, CAP_PLATE_R + 0.5, 96)
-    best = None
-    for dx, dy in [(3 + CAP_PLATE_R, 177 - CAP_PLATE_R), (177 - CAP_PLATE_R, 3 + CAP_PLATE_R)]:
-        gap = clip.min_gap(probe.translate((dx, dy, 0)), 50)
-        if best is None or gap > best[0]:
-            best = (gap, dx, dy)
-    _, dx, dy = best
-    print(f"Deckel bei ({dx:.0f}, {dy:.0f}), Abstand zum Klipp {best[0]:.1f} mm")
-    capparts = {k: v.translate((dx, dy, -zmin)) for k, v in capparts.items()}
+    capparts = {k: v.translate((cx, cy, -zmin)) for k, v in capparts.items()}
     eng = flip_for_print(engraved)
-    eng = eng.translate((dx, dy, -eng.bounding_box()[2]))
+    eng = eng.translate((cx, cy, -eng.bounding_box()[2]))
+    sl_print = sleeve.translate((sx, sy, 0))
 
-    clip_tm = to_tm(clip)
-    export_parts({"einfarbig": clip_tm}, out / "pb-kaffeeklipp-1kg_220mm", bed=(180, 180, 180), write_preview=False)
-    export_parts({k: to_tm(v) for k, v in capparts.items()}, out / "pb-kaffeeklipp-deckel_56mm",
+    for f in out.glob("pb-kaffeeklipp*"):
+        f.unlink()
+    clip_tm, sl_tm = to_tm(clip), to_tm(sl_print)
+    export_parts({"einfarbig": clip_tm}, out / "pb-kaffeeklipp-1kg_klipp_225mm", bed=(180, 180, 180), write_preview=False)
+    export_parts({"einfarbig": sl_tm}, out / "pb-kaffeeklipp-1kg_huelse_37mm", bed=(180, 180, 180), write_preview=False)
+    export_parts({k: to_tm(v) for k, v in capparts.items()}, out / "pb-kaffeeklipp-1kg_deckel_56mm",
                  write_combined=False, write_preview=False, bed=(180, 180, 180))
     eng_tm = to_tm(eng)
     check(eng_tm, "deckel einfarbig (Logo graviert)", (180, 180, 180))
-    eng_tm.export(out / "pb-kaffeeklipp-deckel_56mm_einfarbig.stl")
+    eng_tm.export(out / "pb-kaffeeklipp-1kg_deckel_56mm_einfarbig.stl")
 
-    # Gesamtplatte prüfen + Vorschau
-    plate = {"schwarz": clip_tm, "deckel": to_tm(capparts["schwarz"]),
+    plate = {"schwarz": clip_tm, "huelse": sl_tm, "deckel": to_tm(capparts["schwarz"]),
              "gruen": to_tm(capparts["gruen"]), "weiss": to_tm(capparts["weiss"])}
     allm = trimesh.util.concatenate(list(plate.values()))
     print(f"\nDruckplatte gesamt: {np.round(allm.bounds[0],1)} .. {np.round(allm.bounds[1],1)}")
     preview(plate, out / "pb-kaffeeklipp-1kg_vorschau.png",
-            colors={"schwarz": "#2b2b2b", "deckel": "#2b2b2b", "gruen": "#39ff14", "weiss": "#ededed"})
+            colors={"schwarz": "#2b2b2b", "huelse": "#2b2b2b", "deckel": "#2b2b2b", "gruen": "#39ff14", "weiss": "#ededed"})
 
-    # Montiert (geschlossen, Deckel drauf) – nur Vorschau
-    cap_up = {"deckel": to_tm(base), "gruen": to_tm(g), "weiss": to_tm(w)}
-    z_off = Z_TUBE - CAP_SKIRT_H + 0.0
-    asm = {"klipp": to_tm(A + B)}
-    for k, v in cap_up.items():
-        v = v.copy(); v.apply_translation((XR, 0, z_off)); asm[k] = v
+    asm = {"klipp": to_tm(A + B), "huelse": to_tm(sleeve.translate((XR, 0, 0)))}
+    for k, v in {"deckel": base, "gruen": g, "weiss": w}.items():
+        asm[k] = to_tm(v.translate((XR, 0, SL_TOP - CAP_SKIRT_H)))
     preview(asm, out / "pb-kaffeeklipp-1kg_montiert.png",
-            colors={"klipp": "#2b2b2b", "deckel": "#3a3a3a", "gruen": "#39ff14", "weiss": "#ededed"})
+            colors={"klipp": "#2b2b2b", "huelse": "#6b6b6b", "deckel": "#3a3a3a", "gruen": "#39ff14", "weiss": "#ededed"})
 
 
 if __name__ == "__main__":
