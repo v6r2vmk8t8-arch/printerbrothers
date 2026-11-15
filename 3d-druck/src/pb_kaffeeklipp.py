@@ -1,11 +1,12 @@
-"""Printer Brothers Kaffeebeutel-Klipp mit Schraub-Ausgießer und Logo-Deckel.
+"""Printer Brothers Kaffeebeutel-Klipp (Variante 2 mit angelenkter Hülse: --angelenkt) mit Schraub-Ausgießer und Logo-Deckel.
 
 Eigenentwurf (Funktionsprinzip: Klemme + Ausgießer + Schraubdeckel).
 Optimiert für Bambu Lab A1 mini (180 mm Bett), kurze Druckzeit:
   - Klipp 12 mm hoch, print-in-place Gelenk + Schnappverschluss, keine Stützen
   - Deckel kopfüber gedruckt, Logo als bündiges Inlay nur in den ersten 3 Schichten
 
-Aufruf:  python3 3d-druck/src/pb_kaffeeklipp.py
+Aufruf:  python3 3d-druck/src/pb_kaffeeklipp.py              (Version 1: lose Hülse)
+         python3 3d-druck/src/pb_kaffeeklipp.py --angelenkt (Version 2: angelenkte Hülse)
 """
 import re
 import sys
@@ -52,6 +53,15 @@ RIDGE_Z = (4.5, 9.5)
 SL_TOP = H + 12.0 # Oberkante Hülse
 XR = 165.0        # Mitte Ring (Beutelecke) – Klemmlänge bis zur Ecke ~ 160 mm
 XB = XR + 34.0    # Spitze Arm B (hinter dem Ring)
+
+# Variante 2: angelenkte Hülse (python3 ... --angelenkt)
+HINGED = "--angelenkt" in sys.argv
+PIV = (XR - 34.0, -7.0)   # Drehachse auf Arm A (vor dem Ring)
+R_PIV = 3.0               # Bolzen
+LINK_Z0 = H + 1.0         # Steg 1 mm über dem Klipp (Arm B klappt darunter durch)
+LINK_T = 2.8
+if HINGED:
+    SL_TOP = H + 15.0     # Gewinde beginnt oberhalb vom Steg
 
 # Gewinde (2-gängig, Steigung 10 mm -> ca. halbe Umdrehung zum Schließen)
 TH_DEPTH = 1.2
@@ -217,6 +227,18 @@ def build_clip():
     b_band = ext(b_band2d, Z_B2 - zb1, zb1)
     B = b_full + b_band + b_hinge
 
+    if HINGED:
+        ear = CrossSection.hull(circle(8.5, *PIV) + rect(PIV[0] - 16, y_a, PIV[0] + 16, -G / 2)) ^ half_a
+        ear = ear.offset(2.5, JoinType.Round).offset(-2.5, JoinType.Round) ^ half_a
+        A = A + ext(ear, H)
+        bore = revolve_profile([(0, -0.01), (R_PIV + 2.0 + 0.55, -0.01), (R_PIV + 0.4, 2.0 + 0.55 - 0.4 + 0.01),
+                                (R_PIV + 0.4, H + 0.01), (0, H + 0.01)])
+        A = A - bore.translate((PIV[0], PIV[1], 0))
+        # Einlauffase an der Ringkante (Hülse dreht hier leicht nach -x aus)
+        xe = XR - R_CUP
+        lead = poly([(xe + 0.6, -G / 2 - 2.6), (xe - 2.2, -G / 2 + 0.01), (xe + 0.6, -G / 2 + 0.01)])
+        A = A - ext(lead, H + 2, -1)
+
     # --- Klemmprofil: V-Nut in A, V-Rippe an B (nicht im Ausgießer-Loch)
     zc = H / 2
     no_hole = ext(circle(R_CUP + 0.6, XR), H + 2, -1)
@@ -249,7 +271,16 @@ def build_sleeve():
                           (R_SL_IN, 0.8), (R_SL_IN + 0.8, 0)][::-1])
     for zr in RIDGE_Z:
         sl = sl + revolve_profile([(R_TUBE - 0.2, zr - RIDGE_H - 0.2), (R_TUBE + RIDGE_H, zr), (R_TUBE - 0.2, zr + RIDGE_H + 0.2)])
-    sl = sl + thread(R_TUBE, TH_DEPTH, H + 2.6, SL_TOP - 2.6)
+    th_z0 = (LINK_Z0 + LINK_T + 2.4) if HINGED else H + 2.6
+    sl = sl + thread(R_TUBE, TH_DEPTH, th_z0, SL_TOP - 2.6)
+    if HINGED:
+        px, py = PIV[0] - XR, PIV[1]
+        pin = revolve_profile([(0, 0), (R_PIV + 2.0, 0), (R_PIV, 2.0), (R_PIV, LINK_Z0 + LINK_T), (0, LINK_Z0 + LINK_T)])
+        u = np.array([px, py]) / np.hypot(px, py)
+        link = CrossSection.hull(circle(5.0, px, py) + circle(7.0, *(u * (R_TUBE - 3.0))))
+        link = rounded(link, 1.0) - circle(R_SL_IN)
+        sl = sl + pin.translate((px, py, 0)) + ext(link, LINK_T, LINK_Z0)
+        sl = elephant_foot(sl)
     return sl
 
 
@@ -344,6 +375,20 @@ def checks(A, B, sleeve, base, g, w):
     v = (sl ^ A).volume()
     gap_sl = min(sl.min_gap(A, 2.0), sl.min_gap(B, 2.0))
     print(f"  Hülse im Ring: Überschneidung {v:.4f} mm³, Folienspalt {gap_sl:.2f} mm  {'OK' if v < 1e-3 and gap_sl >= 0.3 else '!!'}")
+    if HINGED:
+        Bopen = B.rotate((0, 0, 40))
+        worst = None
+        for ang in range(0, 121, 5):
+            st = sl.translate((-PIV[0], -PIV[1], 0)).rotate((0, 0, ang)).translate((PIV[0], PIV[1], 0))
+            v = (st ^ A).volume() + (st ^ Bopen).volume()
+            gp = min(st.min_gap(A, 2.0), st.min_gap(Bopen, 2.0))
+            if worst is None or (v, -gp) > (worst[0], -worst[1]):
+                worst = (v, gp, ang)
+            if v > 1e-3:
+                print(f"    Schwenk {ang}°: Überschneidung {v:.2f} mm³")
+        print(f"  Hülse ausschwenken 0–120° (Arm B offen): max. Überschneidung {worst[0]:.4f} mm³, "
+              f"min. Spalt {worst[1]:.2f} mm (bei {worst[2]}°)  {'OK' if worst[0] < 1e-3 else '!!'}")
+        ok &= worst[0] < 1e-3
     cap = base + g + w
     z_off = SL_TOP - CAP_SKIRT_H
     best = None
@@ -377,45 +422,53 @@ def main():
     checks(A, B, sleeve, base, g, w)
 
     # Druckanordnung (A1 mini, 180 x 180): Klipp diagonal, Deckel + Hülse in die freien Ecken
+    if HINGED:
+        A = A + sleeve.translate((XR, 0, 0))     # Hülse wird in der Ringhälfte mitgedruckt
     clip = (A + B.rotate((0, 0, OPEN_DEG))).rotate((0, 0, 45))
     bb = clip.bounding_box()
     clip = clip.translate((90 - (bb[0] + bb[3]) / 2, 90 - (bb[1] + bb[4]) / 2, 0))
     bb = clip.bounding_box()
     print(f"\nKlipp diagonal: {bb[3]-bb[0]:.1f} x {bb[4]-bb[1]:.1f} x {bb[5]-bb[2]:.1f} mm (Bett 180 x 180)")
     cx, cy = place_free(clip, CAP_PLATE_R)
-    r_sl = R_TUBE + TH_DEPTH + RIDGE_H
-    sx, sy = place_free(clip, r_sl, taken=[(cx, cy, CAP_PLATE_R)])
-    print(f"Deckel bei ({cx:.0f}, {cy:.0f}), Hülse bei ({sx:.0f}, {sy:.0f})")
+    if not HINGED:
+        r_sl = R_TUBE + TH_DEPTH + RIDGE_H
+        sx, sy = place_free(clip, r_sl, taken=[(cx, cy, CAP_PLATE_R)])
+        print(f"Deckel bei ({cx:.0f}, {cy:.0f}), Hülse bei ({sx:.0f}, {sy:.0f})")
 
     capparts = {k: flip_for_print(v) for k, v in {"schwarz": base, "gruen": g, "weiss": w}.items()}
     zmin = min(v.bounding_box()[2] for v in capparts.values())
     capparts = {k: v.translate((cx, cy, -zmin)) for k, v in capparts.items()}
     eng = flip_for_print(engraved)
     eng = eng.translate((cx, cy, -eng.bounding_box()[2]))
-    sl_print = sleeve.translate((sx, sy, 0))
-
-    for f in out.glob("pb-kaffeeklipp*"):
+    pre = "pb-kaffeeklipp-1kg-angelenkt" if HINGED else "pb-kaffeeklipp-1kg"
+    for f in out.glob(pre + "_*"):
         f.unlink()
-    clip_tm, sl_tm = to_tm(clip), to_tm(sl_print)
-    export_parts({"einfarbig": clip_tm}, out / "pb-kaffeeklipp-1kg_klipp_225mm", bed=(180, 180, 180), write_preview=False)
-    export_parts({"einfarbig": sl_tm}, out / "pb-kaffeeklipp-1kg_huelse_37mm", bed=(180, 180, 180), write_preview=False)
-    export_parts({k: to_tm(v) for k, v in capparts.items()}, out / "pb-kaffeeklipp-1kg_deckel_56mm",
+    clip_tm = to_tm(clip)
+    plate = {"schwarz": clip_tm}
+    if HINGED:
+        export_parts({"einfarbig": clip_tm}, out / f"{pre}_klipp-mit-huelse_225mm", bed=(180, 180, 180), write_preview=False)
+    else:
+        sl_tm = to_tm(sleeve.translate((sx, sy, 0)))
+        export_parts({"einfarbig": clip_tm}, out / f"{pre}_klipp_225mm", bed=(180, 180, 180), write_preview=False)
+        export_parts({"einfarbig": sl_tm}, out / f"{pre}_huelse_37mm", bed=(180, 180, 180), write_preview=False)
+        plate["huelse"] = sl_tm
+    export_parts({k: to_tm(v) for k, v in capparts.items()}, out / f"{pre}_deckel_56mm",
                  write_combined=False, write_preview=False, bed=(180, 180, 180))
     eng_tm = to_tm(eng)
     check(eng_tm, "deckel einfarbig (Logo graviert)", (180, 180, 180))
-    eng_tm.export(out / "pb-kaffeeklipp-1kg_deckel_56mm_einfarbig.stl")
+    eng_tm.export(out / f"{pre}_deckel_56mm_einfarbig.stl")
 
-    plate = {"schwarz": clip_tm, "huelse": sl_tm, "deckel": to_tm(capparts["schwarz"]),
-             "gruen": to_tm(capparts["gruen"]), "weiss": to_tm(capparts["weiss"])}
+    plate.update({"deckel": to_tm(capparts["schwarz"]),
+                  "gruen": to_tm(capparts["gruen"]), "weiss": to_tm(capparts["weiss"])})
     allm = trimesh.util.concatenate(list(plate.values()))
     print(f"\nDruckplatte gesamt: {np.round(allm.bounds[0],1)} .. {np.round(allm.bounds[1],1)}")
-    preview(plate, out / "pb-kaffeeklipp-1kg_vorschau.png",
+    preview(plate, out / f"{pre}_vorschau.png",
             colors={"schwarz": "#2b2b2b", "huelse": "#2b2b2b", "deckel": "#2b2b2b", "gruen": "#39ff14", "weiss": "#ededed"})
 
-    asm = {"klipp": to_tm(A + B), "huelse": to_tm(sleeve.translate((XR, 0, 0)))}
+    asm = {"klipp": to_tm(A + B)} if HINGED else {"klipp": to_tm(A + B), "huelse": to_tm(sleeve.translate((XR, 0, 0)))}
     for k, v in {"deckel": base, "gruen": g, "weiss": w}.items():
         asm[k] = to_tm(v.translate((XR, 0, SL_TOP - CAP_SKIRT_H)))
-    preview(asm, out / "pb-kaffeeklipp-1kg_montiert.png",
+    preview(asm, out / f"{pre}_montiert.png",
             colors={"klipp": "#2b2b2b", "huelse": "#6b6b6b", "deckel": "#3a3a3a", "gruen": "#39ff14", "weiss": "#ededed"})
 
 
