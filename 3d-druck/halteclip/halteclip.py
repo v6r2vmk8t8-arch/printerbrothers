@@ -14,12 +14,11 @@ R_LINKS, R_RECHTS = 3.0, 1.5       # Eckenradien (Seite Y=0 / Seite Y=B)
 LANGLOCH_L, LANGLOCH_B = 9.0, 5.0  # Langloch Länge (0,9 cm) x Breite (5 mm)
 LANGLOCH_RAND_X = 4.0              # Abstand Plattenende -> Langloch (4 mm)
 LANGLOCH_RAND_Y = 4.0              # Abstand linke Kante -> Langloch (4 | 5 | 8 mm)
-KERBE_L, KERBE_T = 10.0, 1.5       # Kerbe in der rechten Kante (mittig)
+KERBE_L, KERBE_T = 10.0, 0.0       # Kerbe in der rechten Kante (0 = keine)
 
 GESAMT_H = 30.0                    # Grundplatte + Steg = 30 mm
 STEG_B = 16.0                      # Steg-Breite entlang der Platte
 STEG_D = 2.0                       # Wandstärke Steg (Rücken)
-FLANSCH_B, FLANSCH_H = 1.5, 2.0    # Seitenwände des U-Profils
 SPITZE_FASE_H, SPITZE_FASE_T = 3.0, 1.0   # Anfasung an der Steg-Spitze
 RIPPEN_ZONE = (9.0, 21.0)          # Z-Bereich der Griffrippen
 RIPPEN_TEILUNG, RIPPEN_H, RIPPEN_RAND = 1.2, 0.6, 1.5
@@ -60,24 +59,23 @@ def box(x0, y0, z0, x1, y1, z1):
 
 # ---------------- Grundplatte ----------------
 outline = rounded_rect(L, B, R_LINKS, R_RECHTS)
-outline = outline - CrossSection.square((KERBE_L, KERBE_T + 1)).translate(
-    ((L - KERBE_L) / 2, B - KERBE_T))
+if KERBE_T > 0:
+    outline = outline - CrossSection.square((KERBE_L, KERBE_T + 1)).translate(
+        ((L - KERBE_L) / 2, B - KERBE_T))
 outline = outline - slot(LANGLOCH_RAND_X, LANGLOCH_RAND_Y, LANGLOCH_L, LANGLOCH_B)
 outline = outline - slot(L - LANGLOCH_RAND_X - LANGLOCH_L, LANGLOCH_RAND_Y,
                          LANGLOCH_L, LANGLOCH_B)
 platte = Manifold.extrude(outline, T)
 
-# ---------------- Steg (U-Profil) ----------------
+# ---------------- Steg (flach, bündig mit der Plattenkante) ----------------
 x0, x1 = (L - STEG_B) / 2, (L + STEG_B) / 2
-y_aussen = B - KERBE_T                      # Rücken bündig mit Kerbengrund
+y_aussen = B                                # Steg bündig mit der Plattenkante
 y_innen = y_aussen - STEG_D
 z0 = T - 0.01
 ruecken = prism_yz([(y_innen, z0), (y_aussen, z0),
                     (y_aussen, GESAMT_H - SPITZE_FASE_H),
                     (y_aussen - SPITZE_FASE_T, GESAMT_H),
                     (y_innen, GESAMT_H)], x0, x1)
-flansch_l = box(x0, y_innen - FLANSCH_H, z0, x0 + FLANSCH_B, y_innen + 0.01, GESAMT_H)
-flansch_r = box(x1 - FLANSCH_B, y_innen - FLANSCH_H, z0, x1, y_innen + 0.01, GESAMT_H)
 
 rippen = []
 z = RIPPEN_ZONE[0]
@@ -87,10 +85,10 @@ while z + RIPPEN_TEILUNG / 2 <= RIPPEN_ZONE[1]:
                             (y_innen - RIPPEN_H, z + RIPPEN_TEILUNG * 0.5),
                             (y_innen - RIPPEN_H, z + RIPPEN_TEILUNG * 0.25),
                             (y_innen + 0.01, z)],
-                           x0 + FLANSCH_B + RIPPEN_RAND, x1 - FLANSCH_B - RIPPEN_RAND))
+                           x0 + RIPPEN_RAND, x1 - RIPPEN_RAND))
     z += RIPPEN_TEILUNG
 
-teil = platte + ruecken + flansch_l + flansch_r
+teil = platte + ruecken
 for r in rippen:
     teil = teil + r
 print("Manifold-Status:", teil.status(), "Genus:", teil.genus())
