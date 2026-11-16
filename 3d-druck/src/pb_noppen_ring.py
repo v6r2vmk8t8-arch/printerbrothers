@@ -13,7 +13,7 @@ from pathlib import Path
 
 import numpy as np
 import trimesh
-from manifold3d import CrossSection, Manifold, OpType, set_circular_segments
+from manifold3d import CrossSection, JoinType, Manifold, OpType, set_circular_segments
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / ".claude/skills/stl-designer/scripts"))
@@ -32,7 +32,10 @@ STUD_CHAMFER = 0.25
 BAND = 2.4         # Wandstärke Reif
 SOCKET_ABOVE = 2.2 # Sockel ragt so weit über den Reif hinaus
 FLAT = 0.5         # Abflachung unten (Haftung auf dem Druckbett)
-EDGE = 0.5         # Kantenfase innen (Tragekomfort)
+EDGE = 0.5         # (alt) Kantenfase innen – ersetzt durch ROUND
+ROUND = 1.0        # Kantenradius Reif innen + außen (keine scharfen Kanten, Verletzungsschutz)
+SOCK_ROUND = 0.8   # Radius der senkrechten Sockelkanten
+TOP_CHAMFER = 0.4  # Fase an der oberen Sockelkante
 STRIPES = 36       # Streifen rundum
 STRIPE_W = 0.8
 STRIPE_D = 0.4
@@ -66,8 +69,13 @@ def build(variant, inner_d, stripes):
     lx, ly = nx * PITCH - 2 * GAP, ny * PITCH - 2 * GAP
     z_top = zc + ro + SOCKET_ABOVE       # Oberkante Sockel = Noppenbasis
 
-    # Reif (Querschnitt in X-Z), unten abgeflacht
-    band = ext_y(CrossSection.circle(ro).translate((0, zc)), band_w)
+    # Reif als Rotationskörper: Querschnitt (Radius x Breite) mit gerundeten Außenkanten.
+    # Innenkanten rundet der Loch-Schnitt (siehe unten), daher innen eckig mit Reserve.
+    prof = CrossSection.square((ro - ri + 1.0, band_w)).translate((ri - 1.0, -band_w / 2))
+    outer_round = prof.offset(-ROUND, JoinType.Round).offset(ROUND, JoinType.Round)
+    inner_part = CrossSection.square((ROUND + 1.2, band_w)).translate((ri - 1.0, -band_w / 2))
+    band = Manifold.revolve(outer_round + inner_part, 160)          # Achse = Z
+    band = band.rotate((90, 0, 0)).translate((0, 0, zc))             # Achse -> Y
     # Sockel: senkrechte Wände bis auf den Reif; in Y bei 2x2 mit 45°-Schrägen
     sock = Manifold.cube((lx, ly, z_top - zc)).translate((-lx / 2, -ly / 2, zc))
     if ly > band_w + 0.01:
@@ -79,6 +87,12 @@ def build(variant, inner_d, stripes):
                               (-band_w / 2, z_full - over)]])
         sock = Manifold.extrude(prof, lx)                 # Profil in (y,z), Extrusion entlang z
         sock = sock.transform([[0, 0, 1, -lx / 2], [1, 0, 0, 0], [0, 1, 0, 0]])   # (y,z,x)->(x,y,z)
+    # Sockel: senkrechte Kanten gerundet, obere Kante angefast
+    def rrect(w, h, r):
+        return CrossSection.square((w, h)).translate((-w / 2, -h / 2)).offset(-r, JoinType.Round).offset(r, JoinType.Round)
+    body = Manifold.extrude(rrect(lx, ly, SOCK_ROUND), z_top - TOP_CHAMFER - zc + 0.01).translate((0, 0, zc))
+    top = Manifold.extrude(rrect(lx - 2 * TOP_CHAMFER, ly - 2 * TOP_CHAMFER, max(0.05, SOCK_ROUND - TOP_CHAMFER)), 0.01).translate((0, 0, z_top - 0.01))
+    sock = sock ^ Manifold.batch_hull([body, top])
     ring = band + sock
     ring = ring ^ Manifold.cube((200, 200, 200)).translate((-100, -100, 0))   # Abflachung unten
 
@@ -88,12 +102,22 @@ def build(variant, inner_d, stripes):
     cap = CrossSection.square((4 * ri, 4 * ri)).translate((-2 * ri, zc - 2 * ri))
     cap = cap ^ CrossSection.square((4 * ri, ri + 0.6 + 2 * ri)).translate((-2 * ri, zc - 2 * ri))
     hole2d = (hole2d + peak) ^ cap
-    ring = ring - ext_y(hole2d, max(band_w, ly) + 4)
-    # Innenkanten fasen (Kegel an beiden Seiten des Lochs)
-    for sgn in (1, -1):
-        cone = Manifold.cylinder(EDGE * 2, ri + EDGE, ri - EDGE, 128).translate((0, 0, -EDGE))
-        cone = cone.rotate((90, 0, 0)) if sgn > 0 else cone.rotate((-90, 0, 0))
-        ring = ring - cone.translate((0, sgn * band_w / 2, zc))
+    # Loch-Schnitt mit gerundeten Innenkanten: zu beiden Seiten hin als Viertelkreis aufgeweitet
+    cutters = [ext_y(hole2d, band_w - 2 * ROUND + 0.04)]
+    steps = 10
+    for j in range(steps):
+        s0, s1 = j * ROUND / steps, (j + 1) * ROUND / steps
+        sm = (s0 + s1) / 2
+        off = ROUND - np.sqrt(max(0.0, ROUND ** 2 - sm ** 2))
+        cs = hole2d.offset(off, JoinType.Round)
+        for sgn in (1, -1):
+            y0 = band_w / 2 - ROUND + s0
+            seg = ext_y(cs, (s1 - s0) + 0.02).translate((0, sgn * (y0 + (s1 - s0) / 2), 0))
+            cutters.append(seg)
+    for sgn in (1, -1):                                   # außerhalb des Reifs voll offen
+        cutters.append(ext_y(hole2d.offset(ROUND, JoinType.Round), max(band_w, ly) + 4)
+                       .translate((0, sgn * (band_w / 2 + (max(band_w, ly) + 4) / 2 - 0.01), 0)))
+    ring = ring - Manifold.batch_boolean(cutters, OpType.Add)
 
     # Waagrechte Streifen: Rillen rund um den Reif (parallel zu den Kanten), nicht im Sockel,
     # unten frei für die Auflagefläche
