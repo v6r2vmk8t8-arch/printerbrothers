@@ -267,7 +267,10 @@ details.fgroup .list{margin-top:8px}
       </div>
       <p class="hint" style="margin:-4px 0 10px">Von jedem Gerät hochladen und herunterladen – STL, 3MF, STEP, OBJ, ZIP, G-Code (bis 200 MB).</p>
       <div id="uploadProgress"></div>
-      <div class="list" id="ownList"></div>
+      <details class="fgroup" id="ownGroup">
+        <summary id="ownSummary">Alle eigenen Dateien</summary>
+        <div class="list" id="ownList"></div>
+      </details>
       <h2 class="files-h">Von Claude <span class="hint" style="font-weight:400">(aus dem GitHub-Repository)</span></h2>
       <div id="claudeList"></div>
       <input type="file" id="fileInput" multiple hidden>
@@ -848,6 +851,10 @@ details.fgroup .list{margin-top:8px}
     var own = files.eigene.filter(function(f){ return hit(f.name); });
     var cl = files.claude.filter(function(f){ return hit(f.pfad); });
     $('filesInfo').textContent = files.eigene.length + ' eigene · ' + files.claude.length + ' von Claude';
+    // Eigene Dateien: zugeklappt (bleibt offen, wenn ihr sie geöffnet habt); bei Suche automatisch offen
+    $('ownSummary').textContent = s ? 'Eigene Dateien – ' + own.length + ' Treffer' : 'Alle eigenen Dateien (' + files.eigene.length + ')';
+    if(s) $('ownGroup').open = own.length > 0; else if(ownOpenBySearch) $('ownGroup').open = ownUserOpen;
+    ownOpenBySearch = !!s;
     var ol = $('ownList'); ol.innerHTML = '';
     if(!own.length) ol.innerHTML = '<div class="empty">' + (s ? 'Nichts gefunden.' : 'Noch keine eigenen Dateien. Oben auf „+ Dateien hochladen“ tippen.') + '</div>';
     own.forEach(function(f){ ol.appendChild(fileRow(f, 'eigene')); });
@@ -867,6 +874,8 @@ details.fgroup .list{margin-top:8px}
       cbox.appendChild(d);
     });
   }
+  var ownUserOpen = false, ownOpenBySearch = false;
+  $('ownGroup').addEventListener('toggle', function(){ if(!ownOpenBySearch) ownUserOpen = this.open; });
   $('fileSearch').addEventListener('input', renderFiles);
   function setBar(el, frac){ var b = el.querySelector('.fbar'); b.hidden = frac == null; if(frac != null) b.firstChild.style.width = Math.round(frac * 100) + '%'; }
   function downloadFile(quelle, f, el){
