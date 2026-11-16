@@ -39,6 +39,11 @@ WHEELS_X = (15.0, 60.0)
 WHEEL_H = R_W     # Radmitte (Rad steht auf dem Boden)
 
 R_ARCH = R_W + GAP_R
+# Steck-Version (python3 ... --steck): Karosserie und Räder getrennt drucken, Räder auf Achse pressen
+STECK = "--steck" in sys.argv
+GZ_STECK = 0.5     # Spalt Radinnenseite/Karosserie
+AX_FLAT = 1.35     # D-Achse: flache Seite 1.35 mm unter der Mitte (Druckauflage + Verdrehschutz)
+WHEEL_PRESS = 0.05 # Rad-Loch im Modell 0.05 mm größer; gedruckte Löcher werden ~0.1 kleiner -> Presssitz
 FENDER = 1.4      # Kotflügel-Wandstärke über dem Rad
 D_FENDER = 7.0    # Kotflügelbreite von der Seite aus; danach 45° zur Haube abfallend
 NOSE_TAPER = 4.0  # Nase/Heck in der Draufsicht 45° angeschrägt
@@ -142,6 +147,17 @@ def build_body():
     for zp in (5.0, W - 5.0 - 3.0):
         for p in posts:
             body = body + ext(p, 3.0, zp)
+    if STECK:
+        # Steck-Version: Räder werden separat gedruckt -> unten 45°-Trichter (druckbar ohne Rad
+        # darunter), oben einfaches Radhaus, durchgehende Bohrung für die Achse
+        for x in WHEELS_X:
+            z0 = T_W + GZ_STECK
+            bottom_cut = revolve([(0, -1), (R_ARCH, -1), (R_ARCH, z0), (R_BORE, z0 + (R_ARCH - R_BORE)),
+                                  (0, z0 + (R_ARCH - R_BORE))])
+            top_cut = Manifold.cylinder(T_W + GZ_STECK + 1, R_ARCH, R_ARCH, 96).translate((0, 0, W - T_W - GZ_STECK))
+            bore = Manifold.cylinder(W + 4, R_BORE, R_BORE, 96).translate((0, 0, -2))
+            body = body - (bottom_cut + top_cut + bore).translate((x, WHEEL_H, 0))
+        return body
     # Radhäuser: unten Trichter (45°), oben Kegel passend zum Rad, Bohrung für die Achse
     for x in WHEELS_X:
         bottom_cut = revolve([(0, -1), (R_ARCH, -1), (R_ARCH, Z_F0), (R_BORE, Z_F0 + (R_ARCH - R_BORE)),
@@ -167,7 +183,82 @@ def build_axle():
     return ax
 
 
+# ---------------------------------------------------------------- Steck-Version: Achse + 4 Räder
+def d_profile(extra=0.0):
+    """D-Querschnitt der Achse (flache Seite unten = Druckauflage, verhindert Verdrehen im Rad)."""
+    r = R_AX + extra
+    return CrossSection.circle(r) ^ CrossSection.square((4 * r, 2 * r)).translate((-2 * r, -AX_FLAT - extra))
+
+
+def build_pin():
+    """Achse entlang Z (Einbaulage), Länge W - 2*0.3, Enden angefast."""
+    L_ax = W - 0.6
+    core = Manifold.extrude(d_profile(), L_ax - 0.6).translate((0, 0, 0.3))
+    tips = [Manifold.extrude(d_profile(-0.3), 0.31).translate((0, 0, 0.0)),
+            Manifold.extrude(d_profile(-0.3), 0.31).translate((0, 0, L_ax - 0.31))]
+    pin = Manifold.batch_hull([core, tips[0]]) + Manifold.batch_hull([core, tips[1]])
+    return pin.translate((0, 0, 0.3))
+
+
+def build_wheel():
+    """Rad, Außenseite bei z=0 (wird so auf dem Bett gedruckt), D-Loch mit Presssitz."""
+    wh = revolve([(0, 0), (R_W - 0.4, 0), (R_W, 0.4), (R_W, T_W - 0.4), (R_W - 0.4, T_W), (0, T_W)])
+    wh = wh - revolve([(3.0, -0.01), (3.7, -0.01), (3.7, 0.4), (3.0, 0.4)])          # Felgenrille außen
+    hole = Manifold.extrude(d_profile(WHEEL_PRESS), T_W + 2).translate((0, 0, -1))
+    lead = Manifold.extrude(d_profile(WHEEL_PRESS + 0.3), 0.31).translate((0, 0, T_W - 0.3))  # Einführfase innen
+    return wh - hole - lead
+
+
+def main_steck():
+    out = ROOT / "3d-druck"
+    body = build_body()
+    pin, wheel = build_pin(), build_wheel()
+    # Einbaulage: Rad unten (Außenseite z=0), Rad oben gewendet (Außenseite z=W)
+    w_bot = wheel
+    w_top = wheel.rotate((0, 180, 0)).translate((0, 0, W))   # um Y wenden: D-Fläche bleibt unten
+    asm_w, asm_p = [], []
+    for x in WHEELS_X:
+        asm_w += [w_bot.translate((x, WHEEL_H, 0)), w_top.translate((x, WHEEL_H, 0))]
+        asm_p.append(pin.translate((x, WHEEL_H, 0)))
+    wheels = Manifold.batch_boolean(asm_w, OpType.Add)
+    pins = Manifold.batch_boolean(asm_p, OpType.Add)
+
+    print("== Prüfung Steck-Version ==")
+    print(f"  Karosserie: {len(body.decompose())} Körper")
+    for name, part, need in (("Räder", wheels, 0.35), ("Achsen", pins, 0.35)):
+        inter = (body ^ part).volume(); gap = body.min_gap(part, 2.0)
+        print(f"  Karosserie/{name}: Überschneidung {inter:.4f} mm³, min. Spalt {gap:.2f} mm  {'OK' if inter < 1e-3 and gap >= need else '!!'}")
+    press = (wheels ^ pins).volume()
+    print(f"  Presssitz Rad/Achse: {press:.2f} mm³ Überdeckung (gewollt, {WHEEL_PRESS:+.2f} mm im Modell)")
+    print(f"  Achse im Rad: {T_W - 0.3:.1f} mm Steckweg je Seite, Achsenden 0,3 mm versenkt")
+
+    # Druck 1: Karosserie (liegt auf der Seite)
+    bb = body.bounding_box()
+    body_p = body.translate((90 - (bb[0] + bb[3]) / 2, 90 - (bb[1] + bb[4]) / 2, 0))
+    # Druck 2: 4 Räder (Außenseite unten) + 2 Achsen (liegend, flache Seite unten)
+    plate = []
+    for k in range(4):
+        plate.append(wheel.translate((70 + (k % 2) * 16, 80 + (k // 2) * 16, 0)))
+    # Achse liegend: entlang X, flache Seite (lokal -Y) nach unten (-Z)
+    pin_lying = pin.rotate((0, 90, 0)).rotate((90, 0, 0))
+    pb = pin_lying.bounding_box()
+    for k in range(2):
+        plate.append(pin_lying.translate((60 - pb[0], 115 + k * 8 - pb[1], -pb[2])))
+    plate = Manifold.batch_boolean(plate, OpType.Add)
+    export_parts({"einfarbig": to_tm(body_p)}, out / "pb-renn-flitzer-steck_druck1_karosserie",
+                 write_preview=False, bed=(180, 180, 180))
+    export_parts({"einfarbig": to_tm(plate)}, out / "pb-renn-flitzer-steck_druck2_raeder-achsen",
+                 write_preview=False, bed=(180, 180, 180))
+    to_car = lambda m: m.rotate((90, 0, 0))
+    preview({"karosserie": to_tm(to_car(body)), "raeder": to_tm(to_car(wheels)), "achsen": to_tm(to_car(pins))},
+            out / "pb-renn-flitzer-steck_vorschau.png",
+            colors={"karosserie": "#FF7A2F", "raeder": "#2b2b2b", "achsen": "#9a9a9a"})
+    return body, wheels, pins, plate
+
+
 def main():
+    if STECK:
+        return main_steck()
     out = ROOT / "3d-druck"
     body = build_body()
     axle = build_axle()
