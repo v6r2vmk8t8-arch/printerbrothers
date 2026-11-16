@@ -55,6 +55,29 @@ def labels(im, texts):
     return im
 
 
+def diamond(stud_top, z_bot, d=9.0):
+    """Facettierter Edelstein (Brillantform) mit Stift, der in die hohle Noppe gesteckt ist."""
+    rg = d / 2
+    h_crown, h_pav, lift = 0.32 * d, 0.43 * d, 0.4
+    z_g = stud_top + lift + h_pav                     # Rundiste
+    pts = []
+    for k in range(8):                                # Tafel (Achteck)
+        a = 2 * np.pi * (k + 0.5) / 8
+        pts.append((0.55 * rg * np.cos(a), 0.55 * rg * np.sin(a), z_g + h_crown))
+    for k in range(16):                               # Krone-Facetten + Rundiste
+        a = 2 * np.pi * k / 16
+        pts.append((0.82 * rg * np.cos(a + np.pi / 16), 0.82 * rg * np.sin(a + np.pi / 16), z_g + 0.55 * h_crown))
+        pts.append((rg * np.cos(a), rg * np.sin(a), z_g + 0.08))
+        pts.append((rg * np.cos(a), rg * np.sin(a), z_g - 0.08))
+    for k in range(8):                                # Pavillon-Facetten
+        a = 2 * np.pi * (k + 0.5) / 8
+        pts.append((0.45 * rg * np.cos(a), 0.45 * rg * np.sin(a), z_g - 0.55 * h_pav))
+    pts.append((0, 0, z_g - h_pav))                   # Kalette (Spitze)
+    gem = Manifold.hull_points(pts)
+    peg = Manifold.cylinder(z_g - h_pav + 0.5 - z_bot, 1.55, 1.55, 48).translate((0, 0, z_bot))
+    return gem, peg
+
+
 def main():
     for v, (col, fn) in PRODUCTS.items():
         g = 0.45
@@ -74,10 +97,10 @@ def main():
             ro = ri + R.BAND
             z_top = (ro - R.FLAT) + ro + R.SOCKET_ABOVE
             z_bot = (ro - R.FLAT) + ro - R.BAR_DEPTH_INTO_RING
-            bar = Manifold.cylinder(28, 1.6, 1.6, 64).translate((0, 0, z_bot))
-            knob = Manifold.sphere(2.6, 64).translate((0, 0, z_bot + 28))
-            S.render([(tm(ring), col, g), (tm(bar), "#3A3A3A", 0.6), (tm(knob), "#3A3A3A", 0.6)],
-                     22, -58, fill=0.78).save(OUT / f"{fn}-4.jpg", quality=90)
+            stud_top = z_top + R.STUD_H
+            gem, peg = diamond(stud_top, z_bot)
+            S.render([(tm(ring), col, g), (tm(peg), "#E8ECEF", 0.9), (tm(gem), "#DDF3FF", 0.95)],
+                     26, -58, fill=0.78).save(OUT / f"{fn}-4.jpg", quality=90)
         print(v, "ok")
 
 
