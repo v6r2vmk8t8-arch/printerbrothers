@@ -2,6 +2,9 @@
 [build]
   publish = "public"
   command = "echo 'Keine Build-Schritte nötig'"
+  # Nur deployen, wenn sich die Website ändert (spart Netlify-Credits):
+  # Pushes, die nur 3d-druck/ (STL-Dateien, Skripte) oder .claude/ betreffen, werden übersprungen.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- public netlify netlify.toml package.json package-lock.json"
 
 [functions]
   directory = "netlify/functions"
