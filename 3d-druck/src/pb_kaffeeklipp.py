@@ -314,6 +314,23 @@ def load_logo():
 
 
 # ---------------------------------------------------------------- Deckel
+LIP_INTERF = 0.15   # Übermaß der Dichtlippe (radial)
+LIP_WALL = 0.9      # Wandstärke (2 Linien) – gibt nach und legt sich rundum an
+LIP_H = 3.0         # Höhe der Lippe
+LIP_STRAIGHT = 1.8  # gerader Dichtbereich, danach Einführschräge
+
+
+def seal_lip():
+    """Ring an der Deckel-Innenseite (z=CAP_SKIRT_H), ragt LIP_H nach unten in die Hülse."""
+    z0 = CAP_SKIRT_H + 0.3                 # 0.3 in die Deckelplatte eingebettet
+    r_out = R_SL_IN + LIP_INTERF            # Dichtbereich
+    r_tip = R_SL_IN - 0.4                   # Spitze kleiner als die Öffnung -> findet selbst hinein
+    zs = CAP_SKIRT_H - LIP_STRAIGHT
+    zt = CAP_SKIRT_H - LIP_H
+    return revolve_profile([(r_out - LIP_WALL, z0), (r_out, z0), (r_out, zs), (r_tip, zt),
+                            (r_tip - LIP_WALL + 0.3, zt), (r_out - LIP_WALL, zs + 0.3)])
+
+
 def build_cap():
     """Deckel in Gebrauchslage modelliert: Schraubrand unten (z=0), Logo-Platte oben."""
     green, white, sc = load_logo()
@@ -343,6 +360,8 @@ def build_cap():
     cap = cap - revolve_profile([(r_bore - 0.01, -0.01), (r_bore + 1.0, -0.01), (r_bore - 0.01, 1.0)])
     # Außenkante der Logo-Seite leicht fasen (liegt auf dem Bett)
     cap = cap - revolve_profile([(CAP_PLATE_R + 2, z_top + 0.01), (CAP_PLATE_R - 0.6, z_top + 0.01), (CAP_PLATE_R + 2, z_top - 2.6)])
+    # Dichtlippe: dünner Ring, wird mit leichtem Übermaß in die Hülsenöffnung gepresst
+    cap = cap + seal_lip()
 
     g = ext(green, INLAY, z_top - INLAY)
     w = ext(white, INLAY, z_top - INLAY)
@@ -392,12 +411,19 @@ def checks(A, B, sleeve, base, g, w):
         ok &= worst[0] < 1e-3
     cap = base + g + w
     z_off = SL_TOP - CAP_SKIRT_H
+    lip = seal_lip()
+    # Kollision ohne Lippe prüfen (die Lippe hat absichtlich Übermaß)
+    cap_wo_lip = cap - Manifold.cylinder(LIP_H, R_SL_IN + 0.5, R_SL_IN + 0.5, 96).translate((0, 0, CAP_SKIRT_H - LIP_H))
     best = None
     for phi in range(0, 180, 6):
-        c = cap.rotate((0, 0, phi)).translate((XR, 0, z_off + 0.05))
+        c = cap_wo_lip.rotate((0, 0, phi)).translate((XR, 0, z_off + 0.05))
         v = (sl ^ c).volume() + ((A + B) ^ c).volume()
         best = min(best, (v, phi)) if best else (v, phi)
-    print(f"  Deckel auf Hülse: min. Überschneidung {best[0]:.4f} mm³  {'OK' if best[0] < 1e-3 else '!!'}")
+    print(f"  Deckel auf Hülse (ohne Lippe): min. Überschneidung {best[0]:.4f} mm³  {'OK' if best[0] < 1e-3 else '!!'}")
+    press = (sl ^ lip.translate((XR, 0, z_off))).volume()
+    ring_area = np.pi * ((R_SL_IN + LIP_INTERF) ** 2 - R_SL_IN ** 2)
+    print(f"  Dichtlippe: Presssitz {press:.1f} mm³ (≈ {LIP_INTERF} mm Übermaß auf {press / ring_area:.1f} mm Höhe)  "
+          f"{'OK' if 0 < press < 60 else '!!'}")
     return ok and best[0] < 1e-3
 
 
