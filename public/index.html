@@ -479,19 +479,21 @@ header.nav{
 .product-art{
   position:relative; overflow:hidden;
   aspect-ratio:4/3; border-radius:var(--r-md);
-  background:#FFFFFF; /* helle Produktbühne: Teile freigestellt auf Weiß */
+  background:
+    repeating-linear-gradient(to bottom, rgba(236,241,238,0.028) 0 1px, transparent 1px 6px),
+    var(--plate-2);
   display:flex; align-items:center; justify-content:center; padding:1.2rem;
 }
 .product-art svg{ width:100%; height:100%; }
-.product-art img{ width:100%; height:100%; object-fit:contain; display:block; background:#FFFFFF; }
+.product-art img{ width:100%; height:100%; object-fit:cover; display:block; }
 .product-art.photo{ padding:0; }
 /* Mehrere Fotos: wischbare Galerie */
 .gallery{ position:absolute; inset:0; display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; overscroll-behavior-x:contain; }
 .gallery::-webkit-scrollbar{ display:none; }
 .gallery img{ flex:0 0 100%; scroll-snap-align:start; }
 .gal-dots{ position:absolute; left:0; right:0; bottom:8px; display:flex; justify-content:center; gap:6px; pointer-events:none; }
-.gal-dots i{ width:7px; height:7px; border-radius:50%; background:rgba(17,21,23,0.22); transition:background .2s, transform .2s; }
-.gal-dots i.on{ background:var(--filament); box-shadow:0 0 0 1px rgba(17,21,23,0.55); transform:scale(1.25); }
+.gal-dots i{ width:7px; height:7px; border-radius:50%; background:rgba(236,241,238,0.45); box-shadow:0 0 0 1px rgba(3,5,6,0.35); transition:background .2s, transform .2s; }
+.gal-dots i.on{ background:var(--filament); transform:scale(1.25); }
 .gal-btn{ position:absolute; top:50%; transform:translateY(-50%); width:34px; height:34px; border-radius:50%; border:1px solid rgba(236,241,238,0.25); background:rgba(3,5,6,0.6); color:#ECF1EE; font-size:1rem; line-height:1; cursor:pointer; display:grid; place-items:center; opacity:0; transition:opacity .2s; }
 .gal-btn.prev{ left:8px; } .gal-btn.next{ right:8px; }
 .gal-btn:disabled{ visibility:hidden; }
@@ -566,12 +568,12 @@ header.nav{
 .cart-items[hidden]{ display:none; }
 .cart-item{ display:flex; gap:0.85rem; align-items:flex-start; }
 .cart-item-art{
-  width:58px; height:58px; border-radius:var(--r-sm); background:#FFFFFF;
+  width:58px; height:58px; border-radius:var(--r-sm); background:var(--plate-2);
   flex:none; display:flex; align-items:center; justify-content:center;
   overflow:hidden; padding:0.4rem;
 }
 .cart-item-art svg{ width:100%; height:100%; }
-.cart-item-art img{ width:100%; height:100%; object-fit:contain; padding:0; }
+.cart-item-art img{ width:100%; height:100%; object-fit:cover; padding:0; }
 /* Kundentext (z. B. Name für den Anhänger) */
 .cart-note{ display:flex; flex-direction:column; gap:0.3rem; margin-top:0.65rem; font-size:0.74rem; color:var(--ink-soft); }
 .cart-note input{
