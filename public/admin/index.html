@@ -59,7 +59,7 @@ header{position:sticky;top:0;z-index:10;background:rgba(8,10,11,.9);backdrop-fil
 
 label.field{display:grid;gap:6px;margin-bottom:14px}
 label.field > span{font-size:.85rem;color:var(--ink-soft);font-weight:500}
-input[type=text],input[type=password],input[type=number],textarea{width:100%;background:var(--plate-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px;font-size:16px;transition:border-color .2s}
+input[type=text],input[type=password],input[type=number],input[type=search],textarea{width:100%;background:var(--plate-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px;font-size:16px;transition:border-color .2s}
 input:focus,textarea:focus{outline:none;border-color:var(--filament-line)}
 textarea{resize:vertical;min-height:84px}
 .hint{font-size:.8rem;color:var(--ink-soft);margin-top:-8px;margin-bottom:14px}
@@ -120,8 +120,11 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
 .sheet-foot .right{display:flex;gap:10px;margin-left:auto}
 
 /* tabs */
-.file-search{width:100%;margin-bottom:14px}
+.file-search{width:100%;margin-bottom:14px;color:var(--ink);-webkit-appearance:none;appearance:none}
 .files-h{font-size:1rem;margin:18px 0 8px}
+.files-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.files-head .files-h{margin-bottom:8px}
+.files-head .btn{margin-top:10px}
 .frow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;background:var(--plate);border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px}
 .frow .fname{font-weight:600;font-size:.9rem;overflow-wrap:anywhere}
 .frow .fmeta{font-size:.76rem;color:var(--ink-soft)}
@@ -258,7 +261,10 @@ details.fgroup .list{margin-top:8px}
         </div>
       </div>
       <input type="search" id="fileSearch" class="file-search" placeholder="Suchen, z. B. kaffee, ring, 17mm …" aria-label="Dateien durchsuchen">
-      <h2 class="files-h">Eigene Dateien</h2>
+      <div class="files-head">
+        <h2 class="files-h">Eigene Dateien</h2>
+        <button class="btn btn-primary btn-sm" type="button" id="uploadBtn">+ Dateien hochladen</button>
+      </div>
       <p class="hint" style="margin:-4px 0 10px">Von jedem Gerät hochladen und herunterladen – STL, 3MF, STEP, OBJ, ZIP, G-Code (bis 200 MB).</p>
       <div id="uploadProgress"></div>
       <div class="list" id="ownList"></div>
@@ -790,7 +796,8 @@ details.fgroup .list{margin-top:8px}
     $('productsPane').hidden = t !== 'products';
     $('filamentsPane').hidden = t !== 'filaments';
     $('filesPane').hidden = t !== 'files';
-    $('addBtn').textContent = t === 'filaments' ? '+ Neues Filament' : t === 'files' ? '+ Dateien hochladen' : '+ Neues Produkt';
+    $('addBtn').textContent = t === 'filaments' ? '+ Neues Filament' : '+ Neues Produkt';
+    $('addBtn').hidden = t === 'files';          // bei den 3D-Dateien stört der schwebende Knopf beim Suchen
     if(t === 'files' && !filesLoaded) refreshFiles();
     window.scrollTo(0, 0);
   }
@@ -842,7 +849,7 @@ details.fgroup .list{margin-top:8px}
     var cl = files.claude.filter(function(f){ return hit(f.pfad); });
     $('filesInfo').textContent = files.eigene.length + ' eigene · ' + files.claude.length + ' von Claude';
     var ol = $('ownList'); ol.innerHTML = '';
-    if(!own.length) ol.innerHTML = '<div class="empty">' + (s ? 'Nichts gefunden.' : 'Noch keine eigenen Dateien. Unten auf „+ Dateien hochladen“ tippen.') + '</div>';
+    if(!own.length) ol.innerHTML = '<div class="empty">' + (s ? 'Nichts gefunden.' : 'Noch keine eigenen Dateien. Oben auf „+ Dateien hochladen“ tippen.') + '</div>';
     own.forEach(function(f){ ol.appendChild(fileRow(f, 'eigene')); });
     var groups = {};
     cl.forEach(function(f){
@@ -912,6 +919,7 @@ details.fgroup .list{margin-top:8px}
       });
     }, Promise.resolve()).then(refreshFiles);
   }
+  $('uploadBtn').addEventListener('click', function(){ $('fileInput').click(); });
   $('fileInput').addEventListener('change', function(){ if(this.files && this.files.length) uploadFiles(this.files); this.value = ''; });
 
   /* ---------- Filamente ---------- */
