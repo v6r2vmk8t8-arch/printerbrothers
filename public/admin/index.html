@@ -106,6 +106,7 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
 .photo .badge{position:absolute;left:6px;top:6px;font-size:.7rem;padding:2px 7px;border-radius:99px;background:rgba(3,5,6,.72);color:var(--filament)}
 .photo .ctl{position:absolute;right:6px;bottom:6px;display:flex;gap:6px}
 .photo .ctl button{width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;border:1px solid var(--line-strong);background:rgba(3,5,6,.72);color:var(--ink);cursor:pointer;font-size:.85rem}
+.photo .pos{position:absolute;right:6px;top:6px;min-width:22px;height:22px;padding:0 6px;border-radius:99px;background:rgba(3,5,6,.72);color:var(--ink);font-size:.72rem;display:grid;place-items:center}
 .photo-pick{position:relative;display:grid;place-items:center;aspect-ratio:4/3;border-radius:var(--r-md);border:1px dashed var(--line-strong);background:var(--plate-2);overflow:hidden;cursor:pointer}
 .photo-pick .ph{text-align:center;color:var(--ink-soft);font-size:.85rem;padding:10px}
 .photo-pick .ph svg{width:30px;height:30px;display:block;margin:0 auto 6px;color:var(--filament)}
@@ -271,6 +272,11 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
     </div>
   </div>
   <div class="parts" id="fParts"></div>
+  <label class="switch" style="margin-bottom:8px"><input type="checkbox" id="fNote"> Kund:innen können etwas dazuschreiben</label>
+  <label class="field" id="fNoteLabelWrap" hidden>
+    <span>Was sollen sie eintragen?</span>
+    <input type="text" id="fNoteLabel" maxlength="40" placeholder="z. B. Name für den Anhänger">
+  </label>
   <label class="switch"><input type="checkbox" id="fVisible" checked> Im Shop sichtbar</label>
 
   <p class="error" id="sheetError" hidden></p>
@@ -420,6 +426,7 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
           (p.visible === false ? '<span class="tag">ausgeblendet</span>' : '') +
           ((p.parts || []).length > 1 ? '<span class="tag" style="color:var(--filament);border-color:var(--filament-line);background:var(--filament-soft)">' + p.parts.length + ' Farben</span>' : '') +
           (imagesOf(p).length > 1 ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">' + imagesOf(p).length + ' Fotos</span>' : '') +
+          (p.note ? '<span class="tag" style="color:var(--pla);border-color:var(--pla-line, rgba(255,122,47,.32));background:none">✎ Kundentext</span>' : '') +
           (!p.image && p.icon ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">noch kein Foto</span>' : '') +
         '</div></div>' +
         '<div class="item-actions">' +
@@ -483,9 +490,11 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
       el.innerHTML = '<img alt="">' +
         (i === 0 ? '<span class="badge">Titelbild</span>' : '') +
         '<div class="ctl">' +
-          (i > 0 ? '<button type="button" data-act="first" aria-label="Als Titelbild verwenden" title="Als Titelbild">★</button>' : '') +
+          (i > 0 ? '<button type="button" data-act="left" aria-label="Foto nach vorne schieben" title="Nach vorne">◀</button>' : '') +
+          (i < photos.length - 1 ? '<button type="button" data-act="right" aria-label="Foto nach hinten schieben" title="Nach hinten">▶</button>' : '') +
           '<button type="button" data-act="del" aria-label="Foto entfernen" title="Entfernen">✕</button>' +
-        '</div>';
+        '</div>' +
+        '<span class="pos">' + (i + 1) + '</span>';
       el.querySelector('img').src = ph.url;
       el.querySelectorAll('button').forEach(function(b){ b.dataset.i = i; });
       box.appendChild(el);
@@ -508,7 +517,10 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
     $('fDesc').value = p.desc || '';
     $('fPrice').value = p.price === '' ? '' : String(p.price).replace('.', ',');
     $('fVisible').checked = p.visible !== false;
-    partNames = Array.isArray(p.parts) && p.parts.length ? p.parts.slice(0, MAX_COLORS) : [''];
+    $('fNote').checked = p.note === true;
+    $('fNoteLabel').value = p.noteLabel || '';
+    $('fNoteLabelWrap').hidden = !$('fNote').checked;
+    partNames =Array.isArray(p.parts) && p.parts.length ? p.parts.slice(0, MAX_COLORS) : [''];
     renderParts();
     $('deleteBtn').hidden = i < 0;
     $('sheetError').hidden = true;
@@ -565,6 +577,10 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
     h.textContent = 'Namen sind optional – sie helfen beim Auswählen im Warenkorb.';
     box.appendChild(h);
   }
+  $('fNote').addEventListener('change', function(){
+    $('fNoteLabelWrap').hidden = !this.checked;
+    if(this.checked) $('fNoteLabel').focus();
+  });
   $('fColors').addEventListener('click', function(e){
     var b = e.target.closest('button[data-n]');
     if(!b) return;
@@ -625,8 +641,11 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
       if(ph.blob) URL.revokeObjectURL(ph.url);
       photos.splice(i, 1);
       $('photoHint').textContent = photos.length ? 'Bis zu 4 Fotos – das erste ist das Titelbild.' : 'Ohne Foto wird das Logo als Platzhalter gezeigt.';
-    } else if(b.dataset.act === 'first'){
-      photos.splice(i, 1); photos.unshift(ph);
+    } else if(b.dataset.act === 'left' || b.dataset.act === 'right'){
+      var j = b.dataset.act === 'left' ? i - 1 : i + 1;
+      if(j < 0 || j >= photos.length) return;
+      photos[i] = photos[j]; photos[j] = ph;
+      $('photoHint').textContent = 'Reihenfolge geändert – mit „Speichern“ übernehmen.';
     }
     renderPhotos();
   });
@@ -665,6 +684,8 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
         id: old.id, name: name, desc: $('fDesc').value.trim(), price: price,
         image: imageUrl, images: images, icon: imageUrl ? null : (ICONS.indexOf(old.icon) >= 0 ? old.icon : null),
         parts: (readParts(), partNames.map(function(t){ return partNames.length > 1 ? t.trim() : ''; })),
+        note: $('fNote').checked,
+        noteLabel: $('fNote').checked ? ($('fNoteLabel').value.trim() || 'Dein Text') : '',
         visible: $('fVisible').checked
       };
       var next = products.slice();

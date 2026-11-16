@@ -58,7 +58,7 @@ def raster(tris2d, z, size, ids, zbuf, idbuf):
         idbuf[y0:y1 + 1, x0:x1 + 1][upd] = t
 
 
-def render(parts, elev, azim, fill=0.80, bg=("#F3EEE7", "#D9D1C6"), light_from=(-0.45, 0.35, 0.82)):
+def render(parts, elev, azim, fill=0.80, bg=("#FFFFFF", "#FFFFFF"), vignette=0.0, light_from=(-0.45, 0.35, 0.82)):
     """parts: Liste (trimesh, farbe, glanz)."""
     size = SIZE * SS
     R, view, right, up = camera(elev, azim)
@@ -100,12 +100,12 @@ def render(parts, elev, azim, fill=0.80, bg=("#F3EEE7", "#D9D1C6"), light_from=(
     top, bot = hexrgb(bg[0]), hexrgb(bg[1])
     t = np.clip(yy * 0.9 + 0.05, 0, 1)[..., None]
     img = top * (1 - t) + bot * t
-    vig = 1 - 0.22 * (((xx - 0.5) ** 2 + (yy - 0.45) ** 2) * 2.2)
+    vig = 1 - vignette * (((xx - 0.5) ** 2 + (yy - 0.45) ** 2) * 2.2)
     img *= np.clip(vig, 0.75, 1)[..., None]
     shadow = Image.fromarray(((sid >= 0) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(size * 0.012))
     sh = np.asarray(shadow) / 255.0
     contact = Image.fromarray(((sid >= 0) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(size * 0.003))
-    img *= (1 - 0.30 * sh - 0.15 * np.asarray(contact) / 255.0)[..., None]
+    img *= (1 - 0.18 * sh - 0.12 * np.asarray(contact) / 255.0)[..., None]
 
     # Beleuchtung pro Fläche
     key = L

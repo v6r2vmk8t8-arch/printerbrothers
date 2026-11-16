@@ -479,21 +479,19 @@ header.nav{
 .product-art{
   position:relative; overflow:hidden;
   aspect-ratio:4/3; border-radius:var(--r-md);
-  background:
-    repeating-linear-gradient(to bottom, rgba(236,241,238,0.028) 0 1px, transparent 1px 6px),
-    var(--plate-2);
+  background:#FFFFFF; /* helle Produktbühne: Teile freigestellt auf Weiß */
   display:flex; align-items:center; justify-content:center; padding:1.2rem;
 }
 .product-art svg{ width:100%; height:100%; }
-.product-art img{ width:100%; height:100%; object-fit:cover; display:block; }
+.product-art img{ width:100%; height:100%; object-fit:contain; display:block; background:#FFFFFF; }
 .product-art.photo{ padding:0; }
 /* Mehrere Fotos: wischbare Galerie */
 .gallery{ position:absolute; inset:0; display:flex; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; overscroll-behavior-x:contain; }
 .gallery::-webkit-scrollbar{ display:none; }
 .gallery img{ flex:0 0 100%; scroll-snap-align:start; }
 .gal-dots{ position:absolute; left:0; right:0; bottom:8px; display:flex; justify-content:center; gap:6px; pointer-events:none; }
-.gal-dots i{ width:7px; height:7px; border-radius:50%; background:rgba(236,241,238,0.45); box-shadow:0 0 0 1px rgba(3,5,6,0.35); transition:background .2s, transform .2s; }
-.gal-dots i.on{ background:var(--filament); transform:scale(1.25); }
+.gal-dots i{ width:7px; height:7px; border-radius:50%; background:rgba(17,21,23,0.22); transition:background .2s, transform .2s; }
+.gal-dots i.on{ background:var(--filament); box-shadow:0 0 0 1px rgba(17,21,23,0.55); transform:scale(1.25); }
 .gal-btn{ position:absolute; top:50%; transform:translateY(-50%); width:34px; height:34px; border-radius:50%; border:1px solid rgba(236,241,238,0.25); background:rgba(3,5,6,0.6); color:#ECF1EE; font-size:1rem; line-height:1; cursor:pointer; display:grid; place-items:center; opacity:0; transition:opacity .2s; }
 .gal-btn.prev{ left:8px; } .gal-btn.next{ right:8px; }
 .gal-btn:disabled{ visibility:hidden; }
@@ -501,6 +499,10 @@ header.nav{
 @media (hover:none){ .gal-btn{ display:none; } }
 .product h3{ font-size:1.08rem; font-variation-settings:"wdth" 106; }
 .product-desc{ color:var(--ink-soft); font-size:0.9rem; margin:0; flex:1; }
+.product-note{
+  margin:0; font-family:"Azeret Mono", monospace; font-size:0.68rem; font-weight:600;
+  letter-spacing:0.04em; text-transform:uppercase; color:var(--pla);
+}
 .product-foot{
   display:flex; align-items:center; justify-content:space-between; gap:0.75rem;
   padding-top:0.9rem; border-top:1px solid var(--line);
@@ -564,12 +566,22 @@ header.nav{
 .cart-items[hidden]{ display:none; }
 .cart-item{ display:flex; gap:0.85rem; align-items:flex-start; }
 .cart-item-art{
-  width:58px; height:58px; border-radius:var(--r-sm); background:var(--plate-2);
+  width:58px; height:58px; border-radius:var(--r-sm); background:#FFFFFF;
   flex:none; display:flex; align-items:center; justify-content:center;
   overflow:hidden; padding:0.4rem;
 }
 .cart-item-art svg{ width:100%; height:100%; }
-.cart-item-art img{ width:100%; height:100%; object-fit:cover; padding:0; }
+.cart-item-art img{ width:100%; height:100%; object-fit:contain; padding:0; }
+/* Kundentext (z. B. Name für den Anhänger) */
+.cart-note{ display:flex; flex-direction:column; gap:0.3rem; margin-top:0.65rem; font-size:0.74rem; color:var(--ink-soft); }
+.cart-note input{
+  font:inherit; font-size:0.88rem; color:var(--ink); background:var(--plate-2);
+  border:1px solid var(--line-strong); border-radius:var(--r-xs); padding:0.5rem 0.6rem; width:100%;
+}
+.cart-note input:focus{ outline:none; border-color:var(--filament-line); box-shadow:0 0 0 3px var(--filament-soft); }
+.cart-note input.missing{ border-color:var(--pla-line); }
+.checkout-note{ display:block; margin-top:0.2rem; font-size:0.74rem; color:var(--data); font-family:"Instrument Sans", sans-serif; overflow-wrap:anywhere; }
+.checkout-note.missing{ color:var(--pla); }
 .cart-item-info{ flex:1; min-width:0; }
 .cart-item-name{ font-weight:600; font-size:0.92rem; }
 .cart-item-price{
@@ -1279,7 +1291,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
     { id:'transluzent', name:'Transluzent', hex:'#DCE9EE', translucent:true }
   ];
   var ICONS = ['drache','vase','schach','stand','flitzer'];
-  var lines = [];           // { id, colors:[filamentId, …], qty }
+  var lines = [];           // { id, colors:[filamentId, …], qty, uid?, note? } – uid/note nur bei Produkten mit Kundentext
   var lastFocus = null;
 
   function esc(s){
@@ -1317,12 +1329,17 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
   }
 
   /* Zeilen an aktuelle Produkte/Filamente anpassen (z. B. nach dem Laden) */
-  function keyOf(l){ return l.id + '|' + l.colors.join(','); }
+  // Zeilen mit Kundentext werden nie zusammengelegt (jede hat ihren eigenen Text)
+  function keyOf(l){ return l.id + '|' + l.colors.join(',') + (l.uid ? '|' + l.uid : ''); }
+  var uidSeq = 0;
+  function newUid(){ return Date.now().toString(36) + '-' + (++uidSeq); }
   function normalize(){
     var byKey = {}, out = [];
     lines.forEach(function(l){
       var p = PRODUCTS[l.id];
       if(!p || l.qty <= 0) return;
+      if(p.note && !l.uid){ l.uid = newUid(); l.note = l.note || ''; }
+      if(!p.note){ delete l.uid; delete l.note; }
       var def = defaultColors(p);
       l.colors = def.map(function(d, i){ return filById(l.colors[i]) ? l.colors[i] : d; });
       var k = keyOf(l);
@@ -1368,7 +1385,8 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
     grid.innerHTML = '';
     list.forEach(function(p, i){
       if(!p || !p.id) return;
-      next[p.id] = { name:p.name, price:Number(p.price) || 0, image:imagesOf(p)[0] || null, icon:p.icon || null, parts: Array.isArray(p.parts) && p.parts.length ? p.parts : [''] };
+      next[p.id] = { name:p.name, price:Number(p.price) || 0, image:imagesOf(p)[0] || null, icon:p.icon || null, parts: Array.isArray(p.parts) && p.parts.length ? p.parts : [''],
+        note: p.note === true, noteLabel: p.noteLabel || 'Dein Text' };
       var el = document.createElement('article');
       el.className = 'product reveal';
       el.style.setProperty('--i', i % 3);
@@ -1376,6 +1394,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
         '<div class="product-art' + (imagesOf(p).length ? ' photo' : '') + '">' + artHTML(p) + '</div>' +
         '<h3>' + esc(p.name) + '</h3>' +
         '<p class="product-desc">' + esc(p.desc) + '</p>' +
+        (next[p.id].note ? '<p class="product-note">✎ ' + esc(next[p.id].noteLabel) + ' – im Warenkorb eintragen</p>' : '') +
         cardColorsHTML(next[p.id]) +
         '<div class="product-foot">' +
           '<span class="price">' + formatPrice(p.price) + '</span>' +
@@ -1486,6 +1505,9 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
             '<div class="cart-item-name">' + n + '</div>' +
             '<div class="cart-item-price">' + formatPrice(p.price) + '</div>' +
             colorPickerHTML(line, li) +
+            (p.note ? '<label class="cart-note"><span>' + esc(p.noteLabel) + '</span>' +
+              '<input type="text" maxlength="60" autocomplete="off" data-note-line="' + li + '" value="' + esc(line.note || '') + '"' +
+              ' class="' + (line.note ? '' : 'missing') + '" placeholder="Bitte eintragen"></label>' : '') +
             '<div class="cart-item-qty">' +
               '<button class="qty-btn" type="button" data-action="dec" data-line="' + li + '" aria-label="Weniger ' + n + '">&minus;</button>' +
               '<span>' + line.qty + '</span>' +
@@ -1564,6 +1586,8 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
           var f = filById(fid);
           return f ? '<i class="swatch' + swClass(f) + '" style="' + swStyle(f) + '"></i>' : '';
         }).join('') + esc(colors) + '</small>' : '') +
+        (p.note ? '<small class="checkout-note' + (line.note ? '' : ' missing') + '">' + esc(p.noteLabel) + ': ' +
+          (line.note ? '„' + esc(line.note) + '“' : 'noch nicht eingetragen') + '</small>' : '') +
         '</span><span>' + formatPrice(p.price * line.qty) + '</span>';
       listEl.appendChild(row);
     });
@@ -1594,6 +1618,15 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
     else if(action === 'dec') line.qty = Math.max(0, line.qty - 1);
     else if(action === 'remove') line.qty = 0;
     renderCart();
+  });
+  /* Kundentext mitschreiben, ohne neu zu zeichnen (Fokus/Cursor bleiben) */
+  cartItemsEl.addEventListener('input', function(e){
+    var inp = e.target.closest('input[data-note-line]');
+    if(!inp) return;
+    var line = lines[Number(inp.getAttribute('data-note-line'))];
+    if(!line) return;
+    line.note = inp.value.replace(/[\u0000-\u001f]/g, ' ').slice(0, 60);
+    inp.classList.toggle('missing', !line.note.trim());
   });
   /* Pfeiltasten in der Farbauswahl (Radiogruppe) */
   cartItemsEl.addEventListener('keydown', function(e){

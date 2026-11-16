@@ -88,7 +88,10 @@ export function sanitizeList(input) {
     // Farbteile: ein Eintrag pro wählbarer Farbe (Name darf leer sein, z. B. ["Körper", "Augen"])
     let parts = Array.isArray(p?.parts) ? p.parts.slice(0, MAX_COLORS).map((t) => str(t, 24)) : [""];
     if (!parts.length) parts = [""];
-    return { id, name, desc: str(p?.desc, 240), price, image, images, icon: image ? null : icon, parts, visible: p?.visible !== false };
+    // Optional: Kund:innen schreiben etwas dazu (z. B. den Namen für einen Anhänger)
+    const note = p?.note === true;
+    const noteLabel = note ? str(p?.noteLabel, 40) || "Dein Text" : "";
+    return { id, name, desc: str(p?.desc, 240), price, image, images, icon: image ? null : icon, parts, note, noteLabel, visible: p?.visible !== false };
   });
 }
 
