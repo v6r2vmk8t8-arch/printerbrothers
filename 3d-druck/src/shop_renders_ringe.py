@@ -44,14 +44,20 @@ def row(meshes, gap=7.0):
     return out
 
 
-def labels(im, texts):
+def lying(m):
+    """Ring hinlegen (Achse senkrecht), Sockel nach hinten-rechts drehen, auf z=0 stellen."""
+    m = m.rotate((90, 0, 0)).rotate((0, 0, 110))
+    return m.translate((0, 0, -m.bounding_box()[2]))
+
+
+def labels(im, texts, y=0.84):
     d = ImageDraw.Draw(im)
     f = ImageFont.truetype(FONT, 34)
     n = len(texts)
     for k, t in enumerate(texts):
         w = d.textlength(t, font=f)
         x = (k + 0.5) * im.width / n - w / 2
-        d.text((x, im.height * 0.84), t, fill=(60, 55, 50), font=f)
+        d.text((x, im.height * y), t, fill=(60, 55, 50), font=f)
     return im
 
 
@@ -84,9 +90,10 @@ def main():
         # 1) Titelbild
         hero = R.build(v, 17, "glatt")
         S.render([(tm(hero), col, g)], 24, -58, fill=0.70).save(OUT / f"{fn}-1.jpg", quality=90)
-        # 2) Muster
-        ms = row([R.build(v, 17, p) for p in PATTERNS])
-        labels(S.render([(m, col, g) for m in ms], 20, -78, fill=0.92), ["glatt", "senkrecht", "waagrecht"]).save(OUT / f"{fn}-2.jpg", quality=90)
+        # 2) Muster: Ringe liegend (wie auf dem Tisch), Blick seitlich auf den Reif ->
+        #    "senkrecht" erscheint senkrecht, "waagrecht" waagrecht; Noppen zeigen schräg nach hinten
+        ms = row([lying(R.build(v, 17, p)) for p in PATTERNS], gap=6.0)
+        labels(S.render([(m, col, g) for m in ms], 20, -90, fill=0.92), ["glatt", "senkrecht", "waagrecht"], y=0.64).save(OUT / f"{fn}-2.jpg", quality=90)
         # 3) Größen
         gs = row([R.build(v, d, "waagrecht") for d, _ in SIZES])
         labels(S.render([(m, col, g) for m in gs], 20, -78, fill=0.92), [f"{n} {d} mm" for d, n in SIZES]).save(OUT / f"{fn}-3.jpg", quality=90)
