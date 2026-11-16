@@ -120,6 +120,21 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
 .sheet-foot .right{display:flex;gap:10px;margin-left:auto}
 
 /* tabs */
+.file-search{width:100%;margin-bottom:14px}
+.files-h{font-size:1rem;margin:18px 0 8px}
+.frow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;background:var(--plate);border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px}
+.frow .fname{font-weight:600;font-size:.9rem;overflow-wrap:anywhere}
+.frow .fmeta{font-size:.76rem;color:var(--ink-soft)}
+.frow .facts{display:flex;gap:6px}
+.frow .facts .btn{min-height:36px;padding:6px 12px}
+.fbar{height:4px;border-radius:2px;background:var(--plate-3);overflow:hidden;margin-top:6px}
+.fbar i{display:block;height:100%;width:0;background:var(--filament);transition:width .2s}
+details.fgroup{margin-bottom:8px}
+details.fgroup>summary{cursor:pointer;padding:10px 12px;background:var(--plate-2);border:1px solid var(--line);border-radius:var(--r-md);font-weight:600;font-size:.9rem;list-style:none}
+details.fgroup>summary::-webkit-details-marker{display:none}
+details.fgroup>summary::before{content:"▸ ";color:var(--ink-soft)}
+details.fgroup[open]>summary::before{content:"▾ "}
+details.fgroup .list{margin-top:8px}
 .tabs{display:flex;gap:4px;background:var(--plate);border:1px solid var(--line);border-radius:var(--r-sm);padding:4px;margin-bottom:18px}
 .tabs button{flex:1;min-height:40px;border:0;background:none;border-radius:4px;color:var(--ink-soft);font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .2s,color .2s}
 .tabs button[aria-selected=true]{background:var(--plate-3);color:var(--ink)}
@@ -211,6 +226,7 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
     <div class="tabs" role="tablist">
       <button type="button" role="tab" id="tabProducts" aria-selected="true">Produkte</button>
       <button type="button" role="tab" id="tabFilaments" aria-selected="false"><span class="dots" id="tabDots"></span>Filamente</button>
+      <button type="button" role="tab" id="tabFiles" aria-selected="false">3D-Dateien</button>
     </div>
 
     <section id="productsPane">
@@ -232,6 +248,23 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
       </div>
       <p class="hint" style="margin:-6px 0 14px">Nur vorrätige Farben können Kund:innen im Warenkorb auswählen.</p>
       <div class="list" id="filList"></div>
+    </section>
+
+    <section id="filesPane" hidden>
+      <div class="intro">
+        <div>
+          <h1>3D-Dateien</h1>
+          <p id="filesInfo">Lädt …</p>
+        </div>
+      </div>
+      <input type="search" id="fileSearch" class="file-search" placeholder="Suchen, z. B. kaffee, ring, 17mm …" aria-label="Dateien durchsuchen">
+      <h2 class="files-h">Eigene Dateien</h2>
+      <p class="hint" style="margin:-4px 0 10px">Von jedem Gerät hochladen und herunterladen – STL, 3MF, STEP, OBJ, ZIP, G-Code (bis 200 MB).</p>
+      <div id="uploadProgress"></div>
+      <div class="list" id="ownList"></div>
+      <h2 class="files-h">Von Claude <span class="hint" style="font-weight:400">(aus dem GitHub-Repository)</span></h2>
+      <div id="claudeList"></div>
+      <input type="file" id="fileInput" multiple hidden>
     </section>
   </main>
 
@@ -553,7 +586,10 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
     document.body.style.overflow = '';
     dropPhotos();
   }
-  $('addBtn').addEventListener('click', function(){ tab === 'filaments' ? openFilSheet(-1) : openSheet(-1); });
+  $('addBtn').addEventListener('click', function(){
+    if(tab === 'files') return $('fileInput').click();
+    tab === 'filaments' ? openFilSheet(-1) : openSheet(-1);
+  });
   $('sheetClose').addEventListener('click', function(){ closeSheet(); });
   $('cancelBtn').addEventListener('click', function(){ closeSheet(); });
   $('sheetBg').addEventListener('click', function(){ closeSheet(); closeFilSheet(); });
@@ -750,13 +786,133 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
     tab = t;
     $('tabProducts').setAttribute('aria-selected', String(t === 'products'));
     $('tabFilaments').setAttribute('aria-selected', String(t === 'filaments'));
+    $('tabFiles').setAttribute('aria-selected', String(t === 'files'));
     $('productsPane').hidden = t !== 'products';
     $('filamentsPane').hidden = t !== 'filaments';
-    $('addBtn').textContent = t === 'filaments' ? '+ Neues Filament' : '+ Neues Produkt';
+    $('filesPane').hidden = t !== 'files';
+    $('addBtn').textContent = t === 'filaments' ? '+ Neues Filament' : t === 'files' ? '+ Dateien hochladen' : '+ Neues Produkt';
+    if(t === 'files' && !filesLoaded) refreshFiles();
     window.scrollTo(0, 0);
   }
   $('tabProducts').addEventListener('click', function(){ setTab('products'); });
   $('tabFilaments').addEventListener('click', function(){ setTab('filaments'); });
+  $('tabFiles').addEventListener('click', function(){ setTab('files'); });
+
+  /* ---------- 3D-Dateien ---------- */
+  var FCHUNK = 4 * 1024 * 1024;
+  var files = { claude:[], eigene:[] }, filesLoaded = false, busyFiles = 0;
+  function fapi(path, opts){
+    opts = opts || {};
+    opts.headers = Object.assign({ 'x-admin-password': pw }, opts.headers || {});
+    return fetch('/api/dateien/' + path, opts).then(function(r){
+      if(r.status === 401){ logout(); throw new Error('Bitte neu einloggen.'); }
+      if(!r.ok) return r.json().catch(function(){ return {}; }).then(function(b){ throw new Error(b.error || ('Fehler ' + r.status)); });
+      return r;
+    }, function(){ throw new Error('Keine Verbindung zum Server.'); });
+  }
+  function fsize(n){
+    return n >= 1048576 ? (n / 1048576).toLocaleString('de-AT', { maximumFractionDigits:1 }) + ' MB'
+         : Math.max(1, Math.round(n / 1024)) + ' KB';
+  }
+  function fdate(t){ return new Date(t).toLocaleDateString('de-AT', { day:'2-digit', month:'2-digit', year:'numeric' }); }
+  function escH(s){ return String(s).replace(/[&<>"']/g, function(c){ return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); }
+  function refreshFiles(){
+    $('filesInfo').textContent = 'Lädt …';
+    return fapi('liste').then(function(r){ return r.json(); }).then(function(d){
+      files = { claude: d.claude || [], eigene: d.eigene || [] }; filesLoaded = true; renderFiles();
+    }).catch(function(e){ $('filesInfo').textContent = e.message; });
+  }
+  function fileRow(f, quelle, label){
+    var el = document.createElement('div');
+    el.className = 'frow';
+    el.innerHTML = '<div><div class="fname"></div><div class="fmeta"></div><div class="fbar" hidden><i></i></div></div>' +
+      '<div class="facts"><button class="btn btn-ghost" type="button" data-act="dl">Laden</button>' +
+      (quelle === 'eigene' ? '<button class="btn btn-ghost" type="button" data-act="del" aria-label="Löschen">✕</button>' : '') + '</div>';
+    el.querySelector('.fname').textContent = label || f.name;
+    el.querySelector('.fmeta').textContent = fsize(f.size) + ' · ' + fdate(f.uploaded);
+    el.querySelector('[data-act="dl"]').addEventListener('click', function(){ downloadFile(quelle, f, el); });
+    var del = el.querySelector('[data-act="del"]');
+    if(del) del.addEventListener('click', function(){ deleteFile(f); });
+    return el;
+  }
+  function renderFiles(){
+    var s = $('fileSearch').value.trim().toLowerCase();
+    var hit = function(t){ return !s || t.toLowerCase().indexOf(s) >= 0; };
+    var own = files.eigene.filter(function(f){ return hit(f.name); });
+    var cl = files.claude.filter(function(f){ return hit(f.pfad); });
+    $('filesInfo').textContent = files.eigene.length + ' eigene · ' + files.claude.length + ' von Claude';
+    var ol = $('ownList'); ol.innerHTML = '';
+    if(!own.length) ol.innerHTML = '<div class="empty">' + (s ? 'Nichts gefunden.' : 'Noch keine eigenen Dateien. Unten auf „+ Dateien hochladen“ tippen.') + '</div>';
+    own.forEach(function(f){ ol.appendChild(fileRow(f, 'eigene')); });
+    var groups = {};
+    cl.forEach(function(f){
+      var parts = f.pfad.split('/'); var g = parts.length > 1 ? parts.slice(0, -1).join('/') : 'Hauptordner';
+      (groups[g] = groups[g] || []).push(f);
+    });
+    var cbox = $('claudeList'); cbox.innerHTML = '';
+    var keys = Object.keys(groups).sort(function(a, b){ return a === 'Hauptordner' ? -1 : b === 'Hauptordner' ? 1 : a.localeCompare(b, 'de'); });
+    if(!keys.length) cbox.innerHTML = '<div class="empty">' + (s ? 'Nichts gefunden.' : 'Noch keine Dateien abgeglichen.') + '</div>';
+    keys.forEach(function(g){
+      var d = document.createElement('details'); d.className = 'fgroup'; if(s || keys.length === 1) d.open = true;
+      d.innerHTML = '<summary></summary><div class="list"></div>';
+      d.querySelector('summary').textContent = g + ' (' + groups[g].length + ')';
+      groups[g].forEach(function(f){ d.querySelector('.list').appendChild(fileRow(f, 'claude', f.name)); });
+      cbox.appendChild(d);
+    });
+  }
+  $('fileSearch').addEventListener('input', renderFiles);
+  function setBar(el, frac){ var b = el.querySelector('.fbar'); b.hidden = frac == null; if(frac != null) b.firstChild.style.width = Math.round(frac * 100) + '%'; }
+  function downloadFile(quelle, f, el){
+    var parts = [], i = 0, btn = el.querySelector('[data-act="dl"]');
+    btn.disabled = true; setBar(el, 0);
+    function next(){
+      return fapi('datei?quelle=' + quelle + '&id=' + encodeURIComponent(f.id) + '&teil=' + i).then(function(r){
+        var n = Number(r.headers.get('x-teile')) || 1;
+        return r.arrayBuffer().then(function(buf){
+          parts.push(buf); i++; setBar(el, i / n);
+          return i < n ? next() : null;
+        });
+      });
+    }
+    next().then(function(){
+      var url = URL.createObjectURL(new Blob(parts, { type:'application/octet-stream' }));
+      var a = document.createElement('a'); a.href = url; a.download = f.name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+      toast('„' + f.name + '“ geladen ✓');
+    }).catch(function(e){ toast(e.message, 'err'); })
+      .then(function(){ btn.disabled = false; setBar(el, null); });
+  }
+  function deleteFile(f){
+    if(!confirm('„' + f.name + '“ wirklich löschen?')) return;
+    fapi('datei?quelle=eigene&id=' + encodeURIComponent(f.id), { method:'DELETE' })
+      .then(function(){ toast('Gelöscht'); return refreshFiles(); }).catch(function(e){ toast(e.message, 'err'); });
+  }
+  function uploadFiles(list){
+    var arr = Array.prototype.slice.call(list);
+    var box = $('uploadProgress');
+    return arr.reduce(function(chain, file){
+      return chain.then(function(){
+        var row = fileRow({ name:file.name, size:file.size, uploaded:Date.now() }, 'upload');
+        row.querySelector('.facts').innerHTML = '<span class="fmeta">lädt hoch …</span>';
+        box.appendChild(row); setBar(row, 0); busyFiles++;
+        var n = Math.max(1, Math.ceil(file.size / FCHUNK)), id = '';
+        function part(i){
+          var blob = file.slice(i * FCHUNK, Math.min(file.size, (i + 1) * FCHUNK));
+          var qs = 'hochladen?quelle=eigene&name=' + encodeURIComponent(file.name) + '&teile=' + n + '&teil=' + i +
+                   '&groesse=' + file.size + (id ? '&id=' + id : '');
+          return fapi(qs, { method:'POST', headers:{ 'content-type':'application/octet-stream' }, body: blob })
+            .then(function(r){ return r.json(); }).then(function(b){
+              id = b.id; setBar(row, (i + 1) / n);
+              return i + 1 < n ? part(i + 1) : null;
+            });
+        }
+        return part(0).then(function(){ row.remove(); toast('„' + file.name + '“ hochgeladen ✓'); })
+          .catch(function(e){ row.querySelector('.facts').innerHTML = '<span class="fmeta" style="color:var(--pla)"></span>'; row.querySelector('.facts span').textContent = e.message; })
+          .then(function(){ busyFiles--; });
+      });
+    }, Promise.resolve()).then(refreshFiles);
+  }
+  $('fileInput').addEventListener('change', function(){ if(this.files && this.files.length) uploadFiles(this.files); this.value = ''; });
 
   /* ---------- Filamente ---------- */
   function swatchHTML(f, extra){
