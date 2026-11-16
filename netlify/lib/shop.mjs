@@ -9,6 +9,7 @@ const PRODUCTS_KEY = "products.json";
 const FILAMENTS_KEY = "filaments.json";
 export const MAX_COLORS = 4; // A1 mini + AMS lite: bis zu 4 Farben pro Druck
 export const MAX_IMAGES = 4;
+export const MAX_OPTIONS = 3; // Auswahlfelder pro Produkt (z. B. Größe, Muster)
 
 export const shopStore = () => getStore({ name: "shop", consistency: "strong" });
 
@@ -91,7 +92,12 @@ export function sanitizeList(input) {
     // Optional: Kund:innen schreiben etwas dazu (z. B. den Namen für einen Anhänger)
     const note = p?.note === true;
     const noteLabel = note ? str(p?.noteLabel, 40) || "Dein Text" : "";
-    return { id, name, desc: str(p?.desc, 240), price, image, images, icon: image ? null : icon, parts, note, noteLabel, visible: p?.visible !== false };
+    // Optional: Auswahl-Optionen (z. B. Größe, Muster) – bis zu 3, je bis zu 10 Werte
+    const options = (Array.isArray(p?.options) ? p.options : []).slice(0, MAX_OPTIONS).map((o) => ({
+      name: str(o?.name, 20),
+      values: [...new Set((Array.isArray(o?.values) ? o.values : []).map((v) => str(v, 30)).filter(Boolean))].slice(0, 10),
+    })).filter((o) => o.name && o.values.length >= 2);
+    return { id, name, desc: str(p?.desc, 240), price, image, images, icon: image ? null : icon, parts, note, noteLabel, options, visible: p?.visible !== false };
   });
 }
 

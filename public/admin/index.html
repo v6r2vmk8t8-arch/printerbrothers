@@ -140,6 +140,9 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
 .seg button{min-width:44px;min-height:40px;border:0;background:none;cursor:pointer;font-weight:600;color:var(--ink-soft)}
 .seg button+button{border-left:1px solid var(--line)}
 .seg button[aria-pressed=true]{background:var(--filament);color:var(--void)}
+.opts{display:grid;gap:8px;margin:0 0 6px}
+.opts .opt{display:grid;grid-template-columns:110px 1fr;gap:8px}
+.opts input{padding:9px 12px}
 .parts{display:grid;gap:8px;margin:10px 0 16px}
 .parts label{display:grid;grid-template-columns:74px 1fr;align-items:center;gap:10px;font-size:.85rem;color:var(--ink-soft)}
 .parts input{padding:9px 12px}
@@ -277,6 +280,11 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
     <span>Was sollen sie eintragen?</span>
     <input type="text" id="fNoteLabel" maxlength="40" placeholder="z. B. Name für den Anhänger">
   </label>
+  <div class="field" style="margin-bottom:6px">
+    <span style="font-size:.85rem;color:var(--ink-soft);font-weight:500">Auswahl im Warenkorb (optional)</span>
+  </div>
+  <div class="opts" id="fOpts"></div>
+  <p class="hint" style="margin:0 0 14px">Name links, Auswahlwerte rechts mit Komma getrennt – z. B. „Größe“ · „Kinder, Frauen, Männer“. Leer lassen, wenn nicht nötig.</p>
   <label class="switch"><input type="checkbox" id="fVisible" checked> Im Shop sichtbar</label>
 
   <p class="error" id="sheetError" hidden></p>
@@ -427,6 +435,7 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
           ((p.parts || []).length > 1 ? '<span class="tag" style="color:var(--filament);border-color:var(--filament-line);background:var(--filament-soft)">' + p.parts.length + ' Farben</span>' : '') +
           (imagesOf(p).length > 1 ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">' + imagesOf(p).length + ' Fotos</span>' : '') +
           (p.note ? '<span class="tag" style="color:var(--pla);border-color:var(--pla-line, rgba(255,122,47,.32));background:none">✎ Kundentext</span>' : '') +
+          ((p.options || []).length ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">☰ ' + p.options.map(function(o){ return o.name; }).join(', ').replace(/[<>&]/g, '') + '</span>' : '') +
           (!p.image && p.icon ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">noch kein Foto</span>' : '') +
         '</div></div>' +
         '<div class="item-actions">' +
@@ -520,7 +529,8 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
     $('fNote').checked = p.note === true;
     $('fNoteLabel').value = p.noteLabel || '';
     $('fNoteLabelWrap').hidden = !$('fNote').checked;
-    partNames =Array.isArray(p.parts) && p.parts.length ? p.parts.slice(0, MAX_COLORS) : [''];
+    renderOpts(Array.isArray(p.options) ? p.options : []);
+    partNames = Array.isArray(p.parts) && p.parts.length ? p.parts.slice(0, MAX_COLORS) : [''];
     renderParts();
     $('deleteBtn').hidden = i < 0;
     $('sheetError').hidden = true;
@@ -576,6 +586,32 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
     h.className = 'hint'; h.style.margin = '2px 0 0';
     h.textContent = 'Namen sind optional – sie helfen beim Auswählen im Warenkorb.';
     box.appendChild(h);
+  }
+  /* ---------- Auswahl-Optionen (z. B. Größe, Muster) ---------- */
+  function renderOpts(list){
+    var box = $('fOpts');
+    box.innerHTML = '';
+    for(var i = 0; i < 3; i++){
+      var o = list[i] || { name:'', values:[] };
+      var row = document.createElement('div');
+      row.className = 'opt';
+      row.innerHTML = '<input type="text" maxlength="20" aria-label="Name der Auswahl ' + (i + 1) + '">' +
+        '<input type="text" maxlength="200" aria-label="Werte der Auswahl ' + (i + 1) + '">';
+      var ins = row.querySelectorAll('input');
+      ins[0].value = o.name || ''; ins[0].placeholder = ['z. B. Größe','z. B. Muster','z. B. Variante'][i];
+      ins[1].value = (o.values || []).join(', '); ins[1].placeholder = ['Kinder, Frauen, Männer','glatt, gestreift',''][i];
+      box.appendChild(row);
+    }
+  }
+  function readOpts(){
+    var out = [];
+    $('fOpts').querySelectorAll('.opt').forEach(function(row){
+      var ins = row.querySelectorAll('input');
+      var name = ins[0].value.trim();
+      var values = ins[1].value.split(',').map(function(v){ return v.trim(); }).filter(Boolean);
+      if(name && values.length >= 2) out.push({ name:name, values:values });
+    });
+    return out;
   }
   $('fNote').addEventListener('change', function(){
     $('fNoteLabelWrap').hidden = !this.checked;
@@ -686,6 +722,7 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
         parts: (readParts(), partNames.map(function(t){ return partNames.length > 1 ? t.trim() : ''; })),
         note: $('fNote').checked,
         noteLabel: $('fNote').checked ? ($('fNoteLabel').value.trim() || 'Dein Text') : '',
+        options: readOpts(),
         visible: $('fVisible').checked
       };
       var next = products.slice();
