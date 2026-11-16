@@ -37,8 +37,12 @@ STRIPES = 36       # Streifen rundum
 STRIPE_W = 0.8
 STRIPE_D = 0.4
 
-VARIANTS = {       # Name: (Noppen in X, Noppen in Y, Reifbreite)
+BAR_HOLE_D = 3.3   # Loch für Stangen (Nennmaß 3.2; gedruckte Löcher werden etwas kleiner)
+BAR_DEPTH_INTO_RING = 0.4   # Loch reicht so weit unter die Sockelunterkante
+
+VARIANTS = {       # Name: (Noppen in X, Noppen in Y, Reifbreite[, hohle Noppe])
     "1x1": (1, 1, 7.8),
+    "1x1-loch": (1, 1, 7.8, True),
     "1x2": (2, 1, 7.8),
     "2x2": (2, 2, 9.0),
 }
@@ -52,7 +56,8 @@ def ext_y(cs, w):
 
 
 def build(variant, inner_d, stripes):
-    nx, ny, band_w = VARIANTS[variant]
+    nx, ny, band_w = VARIANTS[variant][:3]
+    hollow = len(VARIANTS[variant]) > 3
     ri = inner_d / 2
     ro = ri + BAND
     zc = ro - FLAT                       # Ringmitte über dem Bett
@@ -115,6 +120,14 @@ def build(variant, inner_d, stripes):
                 Manifold.cylinder(STUD_CHAMFER, r, r - STUD_CHAMFER, 96).translate((0, 0, STUD_H - STUD_CHAMFER))
             studs.append(s.translate((x, y, z_top - 0.01)))
     ring = ring + Manifold.batch_boolean(studs, OpType.Add)
+    if hollow:
+        # Hohle Noppe: Loch für Stangen bis knapp unter den Sockel, Eingang angefast
+        rb = BAR_HOLE_D / 2
+        z_bot = zc + ro - BAR_DEPTH_INTO_RING
+        z_end = z_top + STUD_H
+        hole = Manifold.cylinder(z_end - z_bot + 1, rb, rb, 96).translate((0, 0, z_bot))
+        lead = Manifold.cylinder(0.31, rb, rb + 0.3, 96).translate((0, 0, z_end - 0.3))
+        ring = ring - hole - lead
     return ring
 
 
