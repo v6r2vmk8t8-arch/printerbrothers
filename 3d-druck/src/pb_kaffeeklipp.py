@@ -38,7 +38,8 @@ Z_B2 = 11.2       # Oberkante B-Scheibe (bei R_K)
 
 # Schnappverschluss (am Ende hinter dem Ausgießer, eingerahmt von massivem Endblock)
 FINGER_T = 2.6    # Federfinger, freie Länge ~21 mm -> Dehnung < 0.9 %
-BARB = 1.2        # Fangnase ragt 1.2 mm über die Spitze von Arm B
+BARB = 1.7        # Fangnase ragt 1.7 mm über die Spitze von Arm B (v2: +0.5 mm, hält sicherer)
+BARB_RAMP = 2.7   # Höhe der Einlaufschräge (proportional zur Fangnase)
 BULGE = 6.0       # Verstärkungsbalken unter dem Finger (6 x 14 mm)
 END_L = 14.0      # Länge Endblock hinter Arm B
 
@@ -192,7 +193,7 @@ def build_clip():
     # --- Arm A (y<0): Arm + halber Ausgießer-Ring + Verstärkung + Endblock
     y_out = y_a - BULGE
     xf0, xf1 = XB + 0.6, XB + 0.6 + FINGER_T
-    x_blk = xf1 + 1.6
+    x_blk = xf1 + 2.0   # Ausweichraum für den Federfinger
     x_end = XB + END_L
     base = rect(0, y_a, x_end, -G / 2)
     base = base + (circle(R_RING, XR) ^ half_a)
@@ -203,9 +204,9 @@ def build_clip():
     # Tasche für den Federfinger (Finger hängt nur am 6-mm-Balken)
     base = base - rect(XB, y_a, x_blk, 100)
     yc = y_b + 0.15                                # Fangkante
-    y_tip = yc + 1.9 + 3.0
+    y_tip = yc + BARB_RAMP + 3.0
     finger = rect(xf0, y_a - 0.05, xf1, y_tip)
-    barb = poly([(xf0 + 0.01, yc), (XB - BARB, yc), (xf0 + 0.01, yc + 1.9)])
+    barb = poly([(xf0 + 0.01, yc), (XB - BARB, yc), (xf0 + 0.01, yc + BARB_RAMP)])
     knob = rounded(rect(xf0, y_tip - 3.0, xf1 + 1.2, y_tip), 0.5)
     fillets = poly([(xf0, y_a + 1.6), (xf0, y_a + 0.01), (XB + 0.05, y_a + 0.01)]) + \
         poly([(xf1, y_a + 1.4), (xf1, y_a + 0.01), (xf1 + 1.4, y_a + 0.01)])
