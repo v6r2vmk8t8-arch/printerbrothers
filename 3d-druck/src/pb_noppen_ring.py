@@ -136,24 +136,31 @@ def to_tm(m):
     return trimesh.Trimesh(np.asarray(mesh.vert_properties)[:, :3], np.asarray(mesh.tri_verts), process=False)
 
 
+NAMED_SIZES = {15: "kinder", 17: "frauen", 20: "maenner"}   # Innendurchmesser -> Bezeichnung
+
+
 def main():
-    out = ROOT / "3d-druck/noppen-ring"
+    """Standard: Kinder/Frauen/Männer. Mit --alle: 16–20 mm in alle-groessen/. Zahlen = eigene Größen."""
+    base = ROOT / "3d-druck/noppen-ring"
+    alle = "--alle" in sys.argv
+    out = base / "alle-groessen" if alle else base
     out.mkdir(parents=True, exist_ok=True)
     only = [a for a in sys.argv[1:] if a in VARIANTS]
-    sizes = [int(a) for a in sys.argv[1:] if a.isdigit()] or SIZES
+    sizes = [int(a) for a in sys.argv[1:] if a.isdigit()] or (SIZES if alle else list(NAMED_SIZES))
     shown = {}
     for v in only or VARIANTS:
         for d in sizes:
             for stripes in (False, True):
                 m = build(v, d, stripes)
                 tm = to_tm(m)
-                name = f"noppen-ring_{v}_{'streifen' if stripes else 'glatt'}_{d}mm"
+                label = f"{NAMED_SIZES[d]}-{d}mm" if (d in NAMED_SIZES and not alle) else f"{d}mm"
+                name = f"noppen-ring_{v}_{'streifen' if stripes else 'glatt'}_{label}"
                 probs = check(tm, name, (180, 180, 180))
                 parts = len(m.decompose())
                 if parts != 1:
                     print(f"  !! {parts} Körper")
                 tm.export(out / f"{name}.stl")
-                if d == 18:
+                if d == 17:
                     shown[f"{v}_{'streifen' if stripes else 'glatt'}"] = tm
     if shown:
         # Übersicht: nebeneinander legen
