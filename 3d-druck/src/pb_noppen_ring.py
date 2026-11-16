@@ -56,6 +56,8 @@ def ext_y(cs, w):
 
 
 def build(variant, inner_d, stripes):
+    """stripes: 'glatt', 'senkrecht' oder 'waagrecht' (True = senkrecht, für ältere Aufrufe)."""
+    stripes = {True: 'senkrecht', False: 'glatt'}.get(stripes, stripes)
     nx, ny, band_w = VARIANTS[variant][:3]
     hollow = len(VARIANTS[variant]) > 3
     ri = inner_d / 2
@@ -93,8 +95,23 @@ def build(variant, inner_d, stripes):
         cone = cone.rotate((90, 0, 0)) if sgn > 0 else cone.rotate((-90, 0, 0))
         ring = ring - cone.translate((0, sgn * band_w / 2, zc))
 
+    # Waagrechte Streifen: Rillen rund um den Reif (parallel zu den Kanten), nicht im Sockel,
+    # unten frei für die Auflagefläche
+    if stripes == "waagrecht":
+        n = max(2, int(round(band_w / 2.4)))             # 3 Rillen bei 7.8 mm, 4 bei 9 mm
+        pitch = band_w / (n + 1)
+        rings = []
+        for k in range(n):
+            y = -band_w / 2 + pitch * (k + 1)
+            ann = CrossSection.circle(ro + 1) - CrossSection.circle(ro - STRIPE_D)
+            g = Manifold.extrude(ann.translate((0, zc)), STRIPE_W).translate((0, 0, -STRIPE_W / 2)).rotate((90, 0, 0))
+            rings.append(g.translate((0, y, 0)))
+        cut = Manifold.batch_boolean(rings, OpType.Add)
+        keep = Manifold.cube((lx + 2 * STRIPE_W, 40, 40)).translate((-lx / 2 - STRIPE_W, -20, zc))  # Sockelbereich
+        floor = Manifold.cube((200, 40, STRIPE_D + 0.6)).translate((-100, -20, 0))                   # Auflage
+        ring = ring - (cut - keep - floor)
     # Senkrechte Streifen (Rillen quer über den Reif), nicht unter dem Sockel
-    if stripes:
+    if stripes == "senkrecht":
         cuts = []
         for k in range(STRIPES):
             a = 2 * np.pi * k / STRIPES
@@ -150,18 +167,18 @@ def main():
     shown = {}
     for v in only or VARIANTS:
         for d in sizes:
-            for stripes in (False, True):
+            for stripes in ("glatt", "senkrecht", "waagrecht"):
                 m = build(v, d, stripes)
                 tm = to_tm(m)
                 label = f"{NAMED_SIZES[d]}-{d}mm" if (d in NAMED_SIZES and not alle) else f"{d}mm"
-                name = f"noppen-ring_{v}_{'streifen' if stripes else 'glatt'}_{label}"
+                name = f"noppen-ring_{v}_{stripes}_{label}"
                 probs = check(tm, name, (180, 180, 180))
                 parts = len(m.decompose())
                 if parts != 1:
                     print(f"  !! {parts} Körper")
                 tm.export(out / f"{name}.stl")
                 if d == 17:
-                    shown[f"{v}_{'streifen' if stripes else 'glatt'}"] = tm
+                    shown[f"{v}_{stripes}"] = tm
     if shown:
         # Übersicht: nebeneinander legen
         x = 0
@@ -172,7 +189,7 @@ def main():
             x = t.bounds[1][0] + 8
             layout[k] = t
         preview(layout, out / "noppen-ring_uebersicht.png",
-                colors={k: "#E8452C" if "glatt" in k else "#2a6fd6" for k in layout})
+                colors={k: {"glatt": "#E8452C", "senkrecht": "#2a6fd6", "waagrecht": "#2e9e4f"}[k.split("_")[-1]] for k in layout})
 
 
 if __name__ == "__main__":
