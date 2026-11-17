@@ -1,7 +1,10 @@
 """Noppen-Ring: Fingerring mit Bausteinsockel, kompatibel mit gängigen Klemmbausteinen.
 
 Varianten: 1x1 (1 Noppe), 1x2 (2 Noppen), 2x2 (4 Noppen) – je glatt und mit Streifen,
-Innendurchmesser 16–20 mm. Gedruckt stehend (Noppen oben), ohne Stützen.
+Innendurchmesser 16–20 mm. Ohne Stützen druckbar:
+  1x1, 1x1-loch, 1x2: LIEGEND (Ringachse senkrecht, Noppen zeigen zur Seite) – Reif rundum rund,
+                      jede Schicht ein geschlossener Kreis (stabil), Muster rundum durchgehend.
+  2x2:                STEHEND (Noppen oben) – der breite Sockel ginge liegend nur mit Stützen.
 
 Hinweis: „LEGO“ ist eine geschützte Marke – im Shop z. B. „Noppen-Ring“ nennen.
 
@@ -106,9 +109,19 @@ def tentacles(ro, zc, band_w, lx):
     return Manifold.batch_boolean(bodies, OpType.Add)
 
 
-def build(variant, inner_d, stripes):
-    """stripes: 'glatt', 'senkrecht', 'waagrecht' oder 'tentakel' (True = senkrecht, für ältere Aufrufe)."""
+def lies_flat(variant):
+    """Druck liegend? Alle außer 2x2 (Sockel breiter als der Reif)."""
+    nx, ny, band_w = VARIANTS[variant][:3]
+    return ny * PITCH - 2 * GAP <= band_w + 0.01
+
+
+def build(variant, inner_d, stripes, stud_d=None, orient=True):
+    """stripes: 'glatt', 'senkrecht', 'waagrecht' oder 'tentakel' (True = senkrecht, für ältere Aufrufe).
+    Modell entsteht stehend (Ringachse = Y, Noppen oben). Liegende Varianten: ohne Abflachung und
+    ohne Lochspitze; mit orient=True zum Schluss in Drucklage gekippt (Ringachse = Z)."""
     stripes = {True: 'senkrecht', False: 'glatt'}.get(stripes, stripes)
+    lying = lies_flat(variant)
+    stud_d = stud_d or STUD_D
     nx, ny, band_w = VARIANTS[variant][:3]
     hollow = len(VARIANTS[variant]) > 3
     ri = inner_d / 2
@@ -142,14 +155,16 @@ def build(variant, inner_d, stripes):
     top = Manifold.extrude(rrect(lx - 2 * TOP_CHAMFER, ly - 2 * TOP_CHAMFER, max(0.05, SOCK_ROUND - TOP_CHAMFER)), 0.01).translate((0, 0, z_top - 0.01))
     sock = sock ^ Manifold.batch_hull([body, top])
     ring = band + sock
-    ring = ring ^ Manifold.cube((200, 200, 200)).translate((-100, -100, 0))   # Abflachung unten
+    if not lying:
+        ring = ring ^ Manifold.cube((200, 200, 200)).translate((-100, -100, 0))   # Abflachung unten
 
     # Fingerloch: Kreis + oben 45°-Spitze, gekappt (kein Durchhängen ohne Stützen)
     hole2d = CrossSection.circle(ri).translate((0, zc))
     peak = CrossSection([[(-ri / np.sqrt(2), zc + ri / np.sqrt(2)), (ri / np.sqrt(2), zc + ri / np.sqrt(2)), (0, zc + ri * np.sqrt(2))]])
     cap = CrossSection.square((4 * ri, 4 * ri)).translate((-2 * ri, zc - 2 * ri))
     cap = cap ^ CrossSection.square((4 * ri, ri + 0.6 + 2 * ri)).translate((-2 * ri, zc - 2 * ri))
-    hole2d = (hole2d + peak) ^ cap
+    if not lying:                                        # liegend: Loch einfach rund
+        hole2d = (hole2d + peak) ^ cap
     # Loch-Schnitt mit gerundeten Innenkanten: zu beiden Seiten hin als Viertelkreis aufgeweitet
     cutters = [ext_y(hole2d, band_w - 2 * ROUND + 0.04)]
     steps = 10
@@ -181,7 +196,7 @@ def build(variant, inner_d, stripes):
         cut = Manifold.batch_boolean(rings, OpType.Add)
         keep = Manifold.cube((lx + 2 * STRIPE_W, 40, 40)).translate((-lx / 2 - STRIPE_W, -20, zc))  # Sockelbereich
         floor = Manifold.cube((200, 40, STRIPE_D + 0.6)).translate((-100, -20, 0))                   # Auflage
-        ring = ring - (cut - keep - floor)
+        ring = ring - ((cut - keep) if lying else (cut - keep - floor))
     # Senkrechte Streifen (Rillen quer über den Reif), nicht unter dem Sockel
     if stripes == "senkrecht":
         cuts = []
@@ -190,7 +205,7 @@ def build(variant, inner_d, stripes):
             x, z = ro * np.sin(a), zc + ro * np.cos(a)
             if abs(x) < lx / 2 + STRIPE_W and z > zc:      # vom Sockel verdeckt
                 continue
-            if z < STRIPE_D + 0.6:                          # Auflagefläche unten frei lassen
+            if not lying and z < STRIPE_D + 0.6:            # stehend: Auflagefläche unten frei lassen
                 continue
             g = Manifold.cube((STRIPE_W, band_w + 2, STRIPE_D * 2)).translate((-STRIPE_W / 2, -band_w / 2 - 1, -STRIPE_D))
             g = g.rotate((0, -np.degrees(a), 0)).translate((x, 0, z))
@@ -200,7 +215,9 @@ def build(variant, inner_d, stripes):
 
     # Tentakel: wachsen unter dem Sockel hervor und winden sich um den Reif (flaches Relief)
     if stripes == "tentakel":
-        ring = (ring + tentacles(ro, zc, band_w, lx)) ^ Manifold.cube((200, 200, 200)).translate((-100, -100, 0))
+        ring = ring + tentacles(ro, zc, band_w, lx)
+        if not lying:
+            ring = ring ^ Manifold.cube((200, 200, 200)).translate((-100, -100, 0))
 
     # Noppen
     studs = []
@@ -208,7 +225,7 @@ def build(variant, inner_d, stripes):
         for j in range(ny):
             x = (i - (nx - 1) / 2) * PITCH
             y = (j - (ny - 1) / 2) * PITCH
-            r = STUD_D / 2
+            r = stud_d / 2
             s = Manifold.cylinder(STUD_H - STUD_CHAMFER, r, r, 96) + \
                 Manifold.cylinder(STUD_CHAMFER, r, r - STUD_CHAMFER, 96).translate((0, 0, STUD_H - STUD_CHAMFER))
             studs.append(s.translate((x, y, z_top - 0.01)))
@@ -221,6 +238,9 @@ def build(variant, inner_d, stripes):
         hole = Manifold.cylinder(z_end - z_bot + 1, rb, rb, 96).translate((0, 0, z_bot))
         lead = Manifold.cylinder(0.31, rb, rb + 0.3, 96).translate((0, 0, z_end - 0.3))
         ring = ring - hole - lead
+    if lying and orient:
+        ring = ring.rotate((90, 0, 0))                   # Ringachse Y -> Z, Noppen zeigen nach -Y
+        ring = ring.translate((0, 0, -ring.bounding_box()[2]))
     return ring
 
 
@@ -232,8 +252,34 @@ def to_tm(m):
 NAMED_SIZES = {15: "kinder", 17: "frauen", 20: "maenner"}   # Innendurchmesser -> Bezeichnung
 
 
+def passtest():
+    """Passungstest liegend: drei 1x1-Ringe (17 mm) mit Noppen-Ø 4.85 / 4.90 / 4.95,
+    gekennzeichnet mit 1 / 2 / 3 Punkten oben auf dem Sockel. Eine Platte, ~10 min Druck."""
+    out = ROOT / "3d-druck/noppen-ring/passtest"
+    out.mkdir(parents=True, exist_ok=True)
+    ri = 17 / 2; ro = ri + BAND; zc = ro - FLAT
+    rings = []
+    for k, d in enumerate((4.85, 4.90, 4.95), 1):
+        m = build("1x1", 17, "glatt", stud_d=d)
+        top = m.bounding_box()[5]
+        yc = -(zc + ro + 0.9)                           # flache Sockeloberseite außerhalb des Reifs
+        dots = [Manifold.cylinder(0.6, 0.5, 0.5, 32).translate(((j - (k - 1) / 2) * 1.7, yc, top - 0.5)) for j in range(k)]
+        m = m - Manifold.batch_boolean(dots, OpType.Add)
+        tm = to_tm(m)
+        check(tm, f"passtest_{k}_noppe-{d:.2f}", (180, 180, 180))
+        tm.export(out / f"noppen-ring_passtest-{k}_noppe-{d:.2f}mm.stl")
+        rings.append(m.translate(((k - 2) * 26.0, 0, 0)))
+    plate = Manifold.batch_boolean(rings, OpType.Add)
+    tm = to_tm(plate)
+    check(tm, "passtest_alle-3", (180, 180, 180))
+    tm.export(out / "noppen-ring_passtest_alle-3.stl")
+    preview({"t": tm}, out / "noppen-ring_passtest.png", colors={"t": "#E8452C"})
+
+
 def main():
     """Standard: Kinder/Frauen/Männer. Mit --alle: 16–20 mm in alle-groessen/. Zahlen = eigene Größen."""
+    if "--passtest" in sys.argv:
+        return passtest()
     base = ROOT / "3d-druck/noppen-ring"
     alle = "--alle" in sys.argv
     out = base / "alle-groessen" if alle else base

@@ -88,18 +88,18 @@ def main():
     for v, (col, fn) in PRODUCTS.items():
         g = 0.45
         # 1) Titelbild
-        hero = R.build(v, 17, "glatt")
+        hero = R.build(v, 17, "glatt", orient=False)
         S.render([(tm(hero), col, g)], 24, -58, fill=0.70).save(OUT / f"{fn}-1.jpg", quality=90)
         # 2) Muster: Ringe liegend (wie auf dem Tisch), Blick seitlich auf den Reif ->
         #    "senkrecht" erscheint senkrecht, "waagrecht" waagrecht; Noppen zeigen schräg nach hinten
-        ms = row([lying(R.build(v, 17, p)) for p in PATTERNS], gap=6.0)
+        ms = row([lying(R.build(v, 17, p, orient=False)) for p in PATTERNS], gap=6.0)
         labels(S.render([(m, col, g) for m in ms], 20, -90, fill=0.92), ["glatt", "senkrecht", "waagrecht", "Tentakel"], y=0.64).save(OUT / f"{fn}-2.jpg", quality=90)
         # 3) Größen
-        gs = row([R.build(v, d, "waagrecht") for d, _ in SIZES])
+        gs = row([R.build(v, d, "waagrecht", orient=False) for d, _ in SIZES])
         labels(S.render([(m, col, g) for m in gs], 20, -78, fill=0.92), [f"{n} {d} mm" for d, n in SIZES]).save(OUT / f"{fn}-3.jpg", quality=90)
         # 4) Ring mit Loch: Stange eingesteckt
         if v == "1x1-loch":
-            ring = R.build(v, 17, "glatt")
+            ring = R.build(v, 17, "glatt", orient=False)
             ri = 17 / 2
             ro = ri + R.BAND
             z_top = (ro - R.FLAT) + ro + R.SOCKET_ABOVE
