@@ -24,8 +24,8 @@ set_circular_segments(128)
 # ---------------------------------------------------------------- Bausteinmaße (Systemstandard)
 PITCH = 8.0        # Noppenraster
 GAP = 0.1          # Spiel je Seite -> 7.8 mm Grundmaß
-STUD_D = 4.95      # Noppen-Ø (Nennmaß 4.8; +0.15 nach Testdruck – Steine hielten mit 4.85 zu locker)
-STUD_H = 1.95      # Noppenhöhe (Nennmaß 1.7; +0.25 nach Testdruck für mehr Halt)
+STUD_D = 4.90      # Noppen-Ø (Nennmaß 4.8; Testdrucke: 4.85 zu locker, 4.95 etwas zu breit)
+STUD_H = 2.15      # Noppenhöhe (Nennmaß 1.7; +0.45 nach Testdrucken für mehr Halt)
 STUD_CHAMFER = 0.25
 
 # ---------------------------------------------------------------- Ring
