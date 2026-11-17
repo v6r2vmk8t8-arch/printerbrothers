@@ -87,6 +87,9 @@ def render(parts, elev, azim, fill=0.80, bg=("#F3EEE7", "#D9D1C6"), light_from=(
     off = (size - (hi - lo) * sc) / 2
     P2 = (P[..., :2] - lo) * sc + off
     S2 = (Ps[..., :2] - lo) * sc + off
+    # Projektion merken (3D-Punkt -> Pixel im fertigen Bild), z. B. für Beschriftungen
+    render.project = lambda pts: np.column_stack((((np.asarray(pts, float) @ R.T)[:, 0] - lo[0]) * sc + off[0],
+                                                  size - (((np.asarray(pts, float) @ R.T)[:, 1] - lo[1]) * sc + off[1]))) / SS
 
     zbuf = np.full((size, size), -np.inf)
     idbuf = np.full((size, size), -1, int)

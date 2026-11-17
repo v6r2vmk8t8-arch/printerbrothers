@@ -341,11 +341,11 @@ def stand():
     return base
 
 
-def text_relief(s, size, x, y, z, h=0.8):
-    from build123d import Align, BuildPart, BuildSketch, Text, extrude
+def text_relief(s, size, x, y, z, h=0.8, bold=False):
+    from build123d import Align, BuildPart, BuildSketch, FontStyle, Text, extrude
     with BuildPart() as bp:
         with BuildSketch():
-            Text(s, size, align=(Align.CENTER, Align.CENTER))
+            Text(s, size, font_style=FontStyle.BOLD if bold else FontStyle.REGULAR, align=(Align.CENTER, Align.CENTER))
         extrude(amount=h)
     v, f = bp.part.tessellate(0.02, 0.2)
     m = from_arrays(np.array([[p.X, p.Y, p.Z] for p in v]), np.array(f))
@@ -410,6 +410,9 @@ def place(m, x, y, rot=0.0):
     return m.translate((x - bb[3] / 2, y - bb[4] / 2, 0))
 
 
+TAG_R = 5.0   # Nummernschild-Radius am Läufer
+
+
 def sprue(parts, W, H, runners, label):
     """parts: [(Manifold, 'A1')]; runners: Liste von Linien [(x0,y0),(x1,y1)] zusätzlich zum Rahmen."""
     BAR, BH = 3.0, 2.2
@@ -422,8 +425,8 @@ def sprue(parts, W, H, runners, label):
         grid = grid + poly([tuple(c) for c in list(ln.buffer(1.4, cap_style=2).exterior.coords)[:-1]])   # Drehrichtung egal
     grid_m = Manifold.extrude(grid.offset(-0.5, JoinType.Round).offset(0.5, JoinType.Round), BH)
     # Rahmenschild mit Bezeichnung (oben links auf dem Rahmen)
-    tag = Manifold.extrude(CrossSection.square((46, 9)).offset(0, JoinType.Round), 1.6).translate((6, H - 10.5, 0))
-    grid_m = grid_m + tag + text_relief(label, 4.2, 29, H - 6.0, 1.59, 0.6)
+    tag = Manifold.extrude(CrossSection.square((46, 9)).offset(0, JoinType.Round), BH).translate((6, H - 10.5, 0))
+    grid_m = grid_m + tag + text_relief(label, 4.2, 29, H - 6.0, BH - 0.01, 0.7)
     gates, tags, fps = [], [], {}
     allfp = unary_union([footprint(m) for m, _ in parts])
     for m, nr in parts:
@@ -449,16 +452,22 @@ def sprue(parts, W, H, runners, label):
             used += 1
             if used == 1:
                 s0 = ln.project(pr)
-                for off in (6.0, -6.0, 9.0, -9.0, 12.0, -12.0, 15.0, -15.0):
+                for off in (7.0, -7.0, 10.0, -10.0, 13.0, -13.0, 16.0, -16.0, 20.0, -20.0, 0.0):
                     q = ln.interpolate(min(max(s0 + off, 2), ln.length - 2))
-                    if allfp.distance(q) > 4.2 and all(np.hypot(q.x - tx, q.y - ty) > 6.5 for _, tx, ty in tags):
+                    if allfp.distance(q) > TAG_R + 0.9 and all(np.hypot(q.x - tx, q.y - ty) > 2 * TAG_R + 1.5 for _, tx, ty in tags):
                         tags.append((nr, q.x, q.y)); break
         if used == 0:
             print(f"  !! {nr}: kein Anguss möglich")
     tag_m = []
     for nr, x, y in tags:
-        tag_m.append(Manifold.cylinder(1.4, 3.3, 3.3, 40).translate((x, y, 0)) + text_relief(nr, 2.6, x, y, 1.39, 0.5))
+        # Nummernschild: flache Scheibe, Nummer fett und 0.8 mm erhaben (lesbar mit 0.4er Düse)
+        # Scheibe so hoch wie der Läufer, Nummer liegt OBEN drauf (sonst verdeckt der Läufer sie)
+        tag_m.append(Manifold.cylinder(BH, TAG_R, TAG_R, 48).translate((x, y, 0))
+                     + text_relief(nr, 5.0 if len(nr) < 3 else 4.3, x, y, BH - 0.01, 0.8, bold=True))
     grid_m = grid_m + Manifold.batch_boolean(tag_m, OpType.Add)
+    missing = sorted({nr for _, nr in parts} - {nr for nr, _, _ in tags})
+    if missing:
+        print("  !! ohne Nummernschild:", missing)
     return grid_m, Manifold.batch_boolean(gates, OpType.Add), tags
 
 
@@ -476,7 +485,7 @@ def kit_A():
              ("A9", rear_wing_main()), ("A10", rear_wing_flap()),
              ("A11", endplate_rear()), ("A11", endplate_rear()), ("A12", pylon()),
              ("A13", mirror(1)), ("A13", mirror(1))]
-    parts += [("A14", dowel(6.0)) for _ in range(8)]      # 4 Rumpf + 4 Seitenkästen
+    parts += [("A14", dowel(6.0).rotate((90, 0, 0))) for _ in range(8)]   # liegend, Abflachung unten      # 4 Rumpf + 4 Seitenkästen
     return parts
 
 
@@ -522,6 +531,9 @@ def pack(parts, W, H, gap=5.5, bar=3.0):
     return placed, runners, y
 
 
+SPRUE_TAGS = {}
+
+
 def build_sprue(kind):
     W = 172.0 if kind == "A" else 168.0
     parts = kit_A() if kind == "A" else kit_B()
@@ -529,6 +541,7 @@ def build_sprue(kind):
     H = used_h + 3.0 + 12.0
     label = "A  KAROSSERIE" if kind == "A" else "B  FAHRWERK"
     grid, gates, tags = sprue(placed, W, H, runners, label)
+    SPRUE_TAGS[kind] = tags
     allp = Manifold.batch_boolean([m for m, _ in placed], OpType.Add)
     touch = (allp ^ grid).volume()
     plate = Manifold.batch_boolean([allp, grid, gates], OpType.Add)
