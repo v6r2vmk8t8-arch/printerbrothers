@@ -97,7 +97,11 @@ export function sanitizeList(input) {
       name: str(o?.name, 20),
       values: [...new Set((Array.isArray(o?.values) ? o.values : []).map((v) => str(v, 30)).filter(Boolean))].slice(0, 10),
     })).filter((o) => o.name && o.values.length >= 2);
-    return { id, name, desc: str(p?.desc, 240), price, image, images, icon: image ? null : icon, parts, note, noteLabel, options, visible: p?.visible !== false };
+    // Optional: Link, z. B. zur PDF-Bauanleitung (nur eigene Dateien unter /anleitungen/ oder https)
+    let linkUrl = str(p?.linkUrl, 300);
+    if (!/^\/anleitungen\/[A-Za-z0-9._-]+$/.test(linkUrl) && !/^https:\/\/[^\s"'<>]+$/.test(linkUrl)) linkUrl = "";
+    const linkLabel = linkUrl ? str(p?.linkLabel, 40) || "Anleitung (PDF)" : "";
+    return { id, name, desc: str(p?.desc, 240), price, image, images, icon: image ? null : icon, parts, note, noteLabel, options, linkLabel, linkUrl, visible: p?.visible !== false };
   });
 }
 

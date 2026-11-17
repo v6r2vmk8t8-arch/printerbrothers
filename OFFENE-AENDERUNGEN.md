@@ -15,6 +15,9 @@ Letzter erfolgreich veröffentlichter Stand: Commit `dd6dc8a` (Admin-Reiter „3
 | Netlify-Regel: nur deployen, wenn sich die Website ändert | `3bc30ba` | `netlify.toml` |
 | Shopbilder Noppen-Ringe „Muster“ mit 4. Muster Tentakel (`noppen-ring-*-2.jpg`) | `5b350c7` | nur auf Branch `claude/gifted-ritchie-pe23g2` |
 | Bilder `formel-bausatz-*.jpg` (einfacher Bausatz, noch kein Produkt) | `b6f98ff` | nur auf Branch |
+| Shopbilder Noppen-Ringe liegend/rund | Branch | `/images/noppen-ring-*.jpg` |
+| Produkt-Link (z. B. PDF-Anleitung): Feld „Link-Text/Link-Adresse“ im Admin, Link unter der Beschreibung im Shop | Branch | `/admin` → Produkt bearbeiten; Shop-Karte |
+| PDF `public/anleitungen/formel-pb-bauanleitung.pdf` | Branch | `/anleitungen/formel-pb-bauanleitung.pdf` |
 
 Die ersten Zeilen liegen schon auf `main` (Deploy pausiert), die letzten zwei nur auf dem Branch
 `claude/gifted-ritchie-pe23g2` – dort liegen auch alle aktuellen STLs, Skripte und die Formel-PB-Bauanleitung.
@@ -26,7 +29,10 @@ Die ersten Zeilen liegen schon auf `main` (Deploy pausiert), die letzten zwei nu
 2. Branch nach `main` bringen (Fast-Forward) – **ein** Push = **ein** Deploy.
 3. Warten, bis live; prüfen: `/admin/index.html` enthält `uploadBtn` und `ownGroup`,
    Ringbilder haben die neuen MD5-Summen.
-4. Diese Datei danach löschen.
+4. **Nach dem Deploy:** beim Produkt `formel-modellbausatz` per Admin-API `linkLabel: "Bauanleitung (PDF)"`,
+   `linkUrl: "/anleitungen/formel-pb-bauanleitung.pdf"` setzen (vorher speichert der alte Server das Feld nicht).
+   Produkt ist bis zur Preis-Bestätigung durch den Nutzer **ausgeblendet** (Vorschlag 24,90 €).
+5. Diese Datei danach löschen.
 
 ## Ab jetzt sparsam deployen
 - Website-Änderungen auf dem Branch sammeln und gebündelt nach `main` pushen.

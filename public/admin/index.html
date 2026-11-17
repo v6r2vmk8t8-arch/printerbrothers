@@ -322,6 +322,16 @@ details.fgroup .list{margin-top:8px}
     <span>Was sollen sie eintragen?</span>
     <input type="text" id="fNoteLabel" maxlength="40" placeholder="z. B. Name für den Anhänger">
   </label>
+  <div class="row2">
+    <label class="field">
+      <span>Link-Text (optional)</span>
+      <input type="text" id="fLinkLabel" maxlength="40" placeholder="z. B. Bauanleitung (PDF)">
+    </label>
+    <label class="field">
+      <span>Link-Adresse</span>
+      <input type="text" id="fLinkUrl" maxlength="300" placeholder="/anleitungen/datei.pdf oder https://…">
+    </label>
+  </div>
   <div class="field" style="margin-bottom:6px">
     <span style="font-size:.85rem;color:var(--ink-soft);font-weight:500">Auswahl im Warenkorb (optional)</span>
   </div>
@@ -477,6 +487,7 @@ details.fgroup .list{margin-top:8px}
           ((p.parts || []).length > 1 ? '<span class="tag" style="color:var(--filament);border-color:var(--filament-line);background:var(--filament-soft)">' + p.parts.length + ' Farben</span>' : '') +
           (imagesOf(p).length > 1 ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">' + imagesOf(p).length + ' Fotos</span>' : '') +
           (p.note ? '<span class="tag" style="color:var(--pla);border-color:var(--pla-line, rgba(255,122,47,.32));background:none">✎ Kundentext</span>' : '') +
+          (p.linkUrl ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">📄 Link</span>' : '') +
           ((p.options || []).length ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">☰ ' + p.options.map(function(o){ return o.name; }).join(', ').replace(/[<>&]/g, '') + '</span>' : '') +
           (!p.image && p.icon ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">noch kein Foto</span>' : '') +
         '</div></div>' +
@@ -571,6 +582,8 @@ details.fgroup .list{margin-top:8px}
     $('fNote').checked = p.note === true;
     $('fNoteLabel').value = p.noteLabel || '';
     $('fNoteLabelWrap').hidden = !$('fNote').checked;
+    $('fLinkLabel').value = p.linkLabel || '';
+    $('fLinkUrl').value = p.linkUrl || '';
     renderOpts(Array.isArray(p.options) ? p.options : []);
     partNames = Array.isArray(p.parts) && p.parts.length ? p.parts.slice(0, MAX_COLORS) : [''];
     renderParts();
@@ -768,6 +781,8 @@ details.fgroup .list{margin-top:8px}
         note: $('fNote').checked,
         noteLabel: $('fNote').checked ? ($('fNoteLabel').value.trim() || 'Dein Text') : '',
         options: readOpts(),
+        linkLabel: $('fLinkUrl').value.trim() ? ($('fLinkLabel').value.trim() || 'Anleitung (PDF)') : '',
+        linkUrl: $('fLinkUrl').value.trim(),
         visible: $('fVisible').checked
       };
       var next = products.slice();

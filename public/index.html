@@ -501,6 +501,11 @@ header.nav{
 @media (hover:none){ .gal-btn{ display:none; } }
 .product h3{ font-size:1.08rem; font-variation-settings:"wdth" 106; }
 .product-desc{ color:var(--ink-soft); font-size:0.9rem; margin:0; flex:1; }
+.product-link{
+  align-self:flex-start; font-size:0.85rem; font-weight:600; color:var(--pla);
+  text-decoration:underline; text-underline-offset:3px;
+}
+.product-link:hover{ text-decoration-thickness:2px; }
 .product-note{
   margin:0; font-family:"Azeret Mono", monospace; font-size:0.68rem; font-weight:600;
   letter-spacing:0.04em; text-transform:uppercase; color:var(--pla);
@@ -1411,6 +1416,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
         '<div class="product-art' + (imagesOf(p).length ? ' photo' : '') + '">' + artHTML(p) + '</div>' +
         '<h3>' + esc(p.name) + '</h3>' +
         '<p class="product-desc">' + esc(p.desc) + '</p>' +
+        (p.linkUrl ? '<a class="product-link" href="' + esc(p.linkUrl) + '" target="_blank" rel="noopener">📄 ' + esc(p.linkLabel || 'Anleitung (PDF)') + '</a>' : '') +
         (next[p.id].note ? '<p class="product-note">✎ ' + esc(next[p.id].noteLabel) + ' – im Warenkorb eintragen</p>' : '') +
         (next[p.id].options.length ? '<p class="product-note opt">☰ ' + esc(next[p.id].options.map(function(o){ return o.name; }).join(' · ')) + ' im Warenkorb wählbar</p>' : '') +
         cardColorsHTML(next[p.id]) +
