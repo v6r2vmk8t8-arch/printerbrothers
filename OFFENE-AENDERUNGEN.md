@@ -1,6 +1,6 @@
 # Offene Website-Änderungen (warten auf Netlify-Credits)
 
-**Stand: 17.11.2026** – Netlify-Deploy-Credits sind aufgebraucht, Produktions-Deploys pausiert.
+**Stand: 17.11.2026 (aktualisiert)** – Netlify-Deploy-Credits sind aufgebraucht, Produktions-Deploys pausiert.
 Neue Credits ab **23.11.2026** → dann alles mit **einem einzigen** Deploy veröffentlichen.
 
 Letzter erfolgreich veröffentlichter Stand: Commit `dd6dc8a` (Admin-Reiter „3D-Dateien“).
@@ -13,8 +13,12 @@ Letzter erfolgreich veröffentlichter Stand: Commit `dd6dc8a` (Admin-Reiter „3
 | Admin 3D-Dateien: „Eigene Dateien“ als zuklappbare Gruppe, bei Suche automatisch offen | `4d782f8` | `/admin` → 3D-Dateien |
 | Shopbilder Noppen-Ringe mit höheren/breiteren Noppen (1,95 mm / Ø 4,95) | `afcf6e4` | `/images/noppen-ring-*.jpg` |
 | Netlify-Regel: nur deployen, wenn sich die Website ändert | `3bc30ba` | `netlify.toml` |
+| Shopbilder Noppen-Ringe „Muster“ mit 4. Muster Tentakel (`noppen-ring-*-2.jpg`) | `5b350c7` | nur auf Branch `claude/gifted-ritchie-pe23g2` |
+| Bilder `formel-bausatz-*.jpg` (einfacher Bausatz, noch kein Produkt) | `b6f98ff` | nur auf Branch |
 
-Alles liegt auf `main`. Renn-Flitzer-Bilder hat der Nutzer bereits selbst im Admin eingetragen – nichts mehr zu tun
+Die ersten Zeilen liegen schon auf `main` (Deploy pausiert), die letzten zwei nur auf dem Branch
+`claude/gifted-ritchie-pe23g2` – dort liegen auch alle aktuellen STLs, Skripte und die Formel-PB-Bauanleitung.
+3D-Dateien und Bauanleitung sind bereits im Admin unter „3D-Dateien“ (Blobs, kein Deploy nötig). Renn-Flitzer-Bilder hat der Nutzer bereits selbst im Admin eingetragen – nichts mehr zu tun
 (die Dateien `public/images/renn-flitzer-*.jpg` auf dem Branch gehen beim Merge einfach mit, schaden nicht).
 
 ## Ablauf am 23.11.
