@@ -31,7 +31,7 @@ Die ersten Zeilen liegen schon auf `main` (Deploy pausiert), die letzten zwei nu
    Ringbilder haben die neuen MD5-Summen.
 4. **Nach dem Deploy:** beim Produkt `formel-modellbausatz` per Admin-API `linkLabel: "Bauanleitung (PDF)"`,
    `linkUrl: "/anleitungen/formel-pb-bauanleitung.pdf"` setzen (vorher speichert der alte Server das Feld nicht).
-   Produkt ist bis zur Preis-Bestätigung durch den Nutzer **ausgeblendet** (Vorschlag 24,90 €).
+   Produkt ist sichtbar (24,90 €, vom Nutzer bestätigt).
 5. Diese Datei danach löschen.
 
 ## Ab jetzt sparsam deployen
