@@ -58,8 +58,56 @@ def ext_y(cs, w):
     return m.rotate((90, 0, 0))        # (x, y) -> (x, z), Extrusion entlang -Y
 
 
+def tentacles(ro, zc, band_w, lx):
+    """3 Tentakel als Kugelketten (Hülle je zweier Nachbarn): vom Sockel weg um den Reif,
+    seitlich gewellt, zur Spitze dünner, Spitze eingerollt. Erhaben max. ~0.75 mm."""
+    r_base, r_tip, embed = 1.4, 0.45, 0.5
+    rc = ro - embed                                   # Bahnradius (Mittellinie)
+    amp = max(0.5, band_w / 2 - ROUND - 0.1 - r_base)
+    a0 = np.arcsin(min(0.95, (lx / 2 - 0.6) / ro))     # Start knapp unter dem Sockel
+    specs = [  # (Richtung, Bogen in Grad, Wellen, Phase)
+        (+1, 215, 1.7, 0.0),
+        (-1, 200, 1.5, np.pi),
+        (-1, 140, 1.15, np.pi / 2),
+    ]
+    bodies = []
+    for sgn, arc, waves, ph in specs:
+        pts = []
+        n = int(arc / 2.2)
+        for k in range(n + 1):
+            t = k / n
+            a = sgn * (a0 + np.radians(arc) * t)
+            y = amp * np.sin(2 * np.pi * waves * t + ph) * (0.35 + 0.65 * min(1, t * 4))
+            r = r_base + (r_tip - r_base) * t ** 0.8
+            pts.append((a, y, r))
+        # eingerollte Spitze: kleine Spirale in der (Bogen, Breite)-Ebene
+        a_end, y_end, _ = pts[-1]
+        side = -1 if y_end > 0 else 1
+        for k in range(1, 15):
+            s = k / 14
+            rr = 1.3 * (1 - 0.65 * s)
+            ang = s * 1.7 * np.pi
+            a = a_end + sgn * (rr * np.sin(ang)) / rc
+            y = y_end + side * rr * (1 - np.cos(ang))
+            pts.append((a, y, max(0.28, r_tip * (1 - 0.3 * s))))
+        spheres = [Manifold.sphere(r, 20).translate((rc * np.sin(a), y, zc + rc * np.cos(a))) for a, y, r in pts]
+        hulls = [Manifold.batch_hull([spheres[i], spheres[i + 1]]) for i in range(len(spheres) - 1)]
+        body = Manifold.batch_boolean(hulls, OpType.Add)
+        # Saugnäpfe: kleine Mulden auf der Außenseite, jede 3. Station (nur wo dick genug)
+        cups = []
+        for a, y, r in pts[2:-14:3]:
+            if r < 0.7:
+                continue
+            rr = rc + r * 0.95
+            cups.append(Manifold.sphere(0.32 * r, 16).translate((rr * np.sin(a), y, zc + rr * np.cos(a))))
+        if cups:
+            body = body - Manifold.batch_boolean(cups, OpType.Add)
+        bodies.append(body)
+    return Manifold.batch_boolean(bodies, OpType.Add)
+
+
 def build(variant, inner_d, stripes):
-    """stripes: 'glatt', 'senkrecht' oder 'waagrecht' (True = senkrecht, für ältere Aufrufe)."""
+    """stripes: 'glatt', 'senkrecht', 'waagrecht' oder 'tentakel' (True = senkrecht, für ältere Aufrufe)."""
     stripes = {True: 'senkrecht', False: 'glatt'}.get(stripes, stripes)
     nx, ny, band_w = VARIANTS[variant][:3]
     hollow = len(VARIANTS[variant]) > 3
@@ -150,6 +198,10 @@ def build(variant, inner_d, stripes):
         if cuts:
             ring = ring - Manifold.batch_boolean(cuts, OpType.Add)
 
+    # Tentakel: wachsen unter dem Sockel hervor und winden sich um den Reif (flaches Relief)
+    if stripes == "tentakel":
+        ring = (ring + tentacles(ro, zc, band_w, lx)) ^ Manifold.cube((200, 200, 200)).translate((-100, -100, 0))
+
     # Noppen
     studs = []
     for i in range(nx):
@@ -191,7 +243,7 @@ def main():
     shown = {}
     for v in only or VARIANTS:
         for d in sizes:
-            for stripes in ("glatt", "senkrecht", "waagrecht"):
+            for stripes in ("glatt", "senkrecht", "waagrecht", "tentakel"):
                 m = build(v, d, stripes)
                 tm = to_tm(m)
                 label = f"{NAMED_SIZES[d]}-{d}mm" if (d in NAMED_SIZES and not alle) else f"{d}mm"
@@ -213,7 +265,7 @@ def main():
             x = t.bounds[1][0] + 8
             layout[k] = t
         preview(layout, out / "noppen-ring_uebersicht.png",
-                colors={k: {"glatt": "#E8452C", "senkrecht": "#2a6fd6", "waagrecht": "#2e9e4f"}[k.split("_")[-1]] for k in layout})
+                colors={k: {"glatt": "#E8452C", "senkrecht": "#2a6fd6", "waagrecht": "#2e9e4f", "tentakel": "#8e44ad"}[k.split("_")[-1]] for k in layout})
 
 
 if __name__ == "__main__":

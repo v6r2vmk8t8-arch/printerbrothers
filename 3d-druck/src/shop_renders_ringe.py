@@ -26,7 +26,7 @@ PRODUCTS = {   # Variante: (Farbe, Dateiname)
     "1x1-loch": ("#2E9E4F", "noppen-ring-loch"),
 }
 SIZES = [(15, "Kinder"), (17, "Frauen"), (20, "Männer")]
-PATTERNS = ["glatt", "senkrecht", "waagrecht"]
+PATTERNS = ["glatt", "senkrecht", "waagrecht", "tentakel"]
 
 
 def tm(m):
@@ -93,7 +93,7 @@ def main():
         # 2) Muster: Ringe liegend (wie auf dem Tisch), Blick seitlich auf den Reif ->
         #    "senkrecht" erscheint senkrecht, "waagrecht" waagrecht; Noppen zeigen schräg nach hinten
         ms = row([lying(R.build(v, 17, p)) for p in PATTERNS], gap=6.0)
-        labels(S.render([(m, col, g) for m in ms], 20, -90, fill=0.92), ["glatt", "senkrecht", "waagrecht"], y=0.64).save(OUT / f"{fn}-2.jpg", quality=90)
+        labels(S.render([(m, col, g) for m in ms], 20, -90, fill=0.92), ["glatt", "senkrecht", "waagrecht", "Tentakel"], y=0.64).save(OUT / f"{fn}-2.jpg", quality=90)
         # 3) Größen
         gs = row([R.build(v, d, "waagrecht") for d, _ in SIZES])
         labels(S.render([(m, col, g) for m in gs], 20, -78, fill=0.92), [f"{n} {d} mm" for d, n in SIZES]).save(OUT / f"{fn}-3.jpg", quality=90)
