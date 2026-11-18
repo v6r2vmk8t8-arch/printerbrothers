@@ -322,6 +322,7 @@ details.fgroup .list{margin-top:8px}
     <span>Was sollen sie eintragen?</span>
     <input type="text" id="fNoteLabel" maxlength="40" placeholder="z. B. Name für den Anhänger">
   </label>
+  <label class="switch" style="margin-bottom:14px"><input type="checkbox" id="fLogo"> Firmen können ihr eigenes Logo mitschicken (statt PB-Logo)</label>
   <div class="row2">
     <label class="field">
       <span>Link-Text (optional)</span>
@@ -487,6 +488,7 @@ details.fgroup .list{margin-top:8px}
           ((p.parts || []).length > 1 ? '<span class="tag" style="color:var(--filament);border-color:var(--filament-line);background:var(--filament-soft)">' + p.parts.length + ' Farben</span>' : '') +
           (imagesOf(p).length > 1 ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">' + imagesOf(p).length + ' Fotos</span>' : '') +
           (p.note ? '<span class="tag" style="color:var(--pla);border-color:var(--pla-line, rgba(255,122,47,.32));background:none">✎ Kundentext</span>' : '') +
+          (p.logo ? '<span class="tag" style="color:var(--filament);border-color:var(--filament-line);background:none">◆ Firmenlogo</span>' : '') +
           (p.linkUrl ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">📄 Link</span>' : '') +
           ((p.options || []).length ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">☰ ' + p.options.map(function(o){ return o.name; }).join(', ').replace(/[<>&]/g, '') + '</span>' : '') +
           (!p.image && p.icon ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">noch kein Foto</span>' : '') +
@@ -582,6 +584,7 @@ details.fgroup .list{margin-top:8px}
     $('fNote').checked = p.note === true;
     $('fNoteLabel').value = p.noteLabel || '';
     $('fNoteLabelWrap').hidden = !$('fNote').checked;
+    $('fLogo').checked = p.logo === true;
     $('fLinkLabel').value = p.linkLabel || '';
     $('fLinkUrl').value = p.linkUrl || '';
     renderOpts(Array.isArray(p.options) ? p.options : []);
@@ -781,6 +784,7 @@ details.fgroup .list{margin-top:8px}
         note: $('fNote').checked,
         noteLabel: $('fNote').checked ? ($('fNoteLabel').value.trim() || 'Dein Text') : '',
         options: readOpts(),
+        logo: $('fLogo').checked,
         linkLabel: $('fLinkUrl').value.trim() ? ($('fLinkLabel').value.trim() || 'Anleitung (PDF)') : '',
         linkUrl: $('fLinkUrl').value.trim(),
         visible: $('fVisible').checked

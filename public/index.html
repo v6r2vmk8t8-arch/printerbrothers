@@ -580,6 +580,18 @@ header.nav{
 .cart-item-art svg{ width:100%; height:100%; }
 .cart-item-art img{ width:100%; height:100%; object-fit:cover; padding:0; }
 /* Kundentext (z. B. Name für den Anhänger) */
+.cart-logo{ display:flex; flex-direction:column; gap:0.3rem; margin-top:0.65rem; font-size:0.74rem; color:var(--ink-soft); }
+.cart-logo em{ font-style:normal; opacity:.75; }
+.cart-logo-pick{ display:inline-block; align-self:flex-start; padding:0.4rem 0.7rem; border:1px dashed var(--line-strong, rgba(236,241,238,.3));
+  border-radius:var(--r-xs, 6px); cursor:pointer; color:var(--ink); }
+.cart-logo-pick:hover{ border-color:var(--filament-line); }
+.cart-logo-pick:focus-within{ outline:2px solid var(--filament-line); }
+.vh{ position:absolute; width:1px; height:1px; opacity:0; overflow:hidden; }
+.cart-logo-pick{ position:relative; }
+.cart-logo-file{ display:flex; gap:0.6rem; align-items:center; overflow-wrap:anywhere; }
+.cart-logo-file b{ color:var(--ink); font-weight:600; }
+.product-note.logo{ color:var(--filament); }
+.photo-doc{ display:grid; place-items:center; width:100%; height:100%; font:600 0.8rem "Azeret Mono", monospace; color:var(--ink-soft); }
 .cart-note{ display:flex; flex-direction:column; gap:0.3rem; margin-top:0.65rem; font-size:0.74rem; color:var(--ink-soft); }
 .cart-note input{
   font:inherit; font-size:0.88rem; color:var(--ink); background:var(--plate-2);
@@ -1153,11 +1165,11 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
             <textarea id="cf-idee" name="idee" rows="4" required></textarea>
           </div>
           <div class="form-row">
-            <span class="form-label" id="cf-fotos-label">Fotos oder Skizzen <span class="optional">– bis zu 4, freiwillig</span></span>
+            <span class="form-label" id="cf-fotos-label">Fotos, Skizzen oder Logo <span class="optional">– bis zu 4, freiwillig (auch SVG/PDF)</span></span>
             <label class="photo-pick" id="photoPick">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="12" cy="12.5" r="3.5"/><path d="M8 5l1.5-2h5L16 5"/></svg>
               <span>Foto aufnehmen oder auswählen</span>
-              <input type="file" id="cf-fotos" accept="image/*" multiple aria-labelledby="cf-fotos-label">
+              <input type="file" id="cf-fotos" accept="image/*,.svg,.pdf,application/pdf" multiple aria-labelledby="cf-fotos-label">
             </label>
             <ul class="photo-list" id="photoList"></ul>
             <!-- Netlify Forms nimmt nur eine Datei pro Feld: die Fotos werden per Script hier eingehängt -->
@@ -1222,6 +1234,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
       <strong>Das ist eine Vorschau.</strong>
       <p>Hier entsteht bald der echte Bestellvorgang. Es wurde gerade nichts bestellt oder bezahlt.</p>
     </div>
+    <button class="btn btn-primary cart-checkout" type="button" id="cartLogoRequest" hidden>Logo-Anfrage an uns senden</button>
     <button class="btn btn-ghost" type="button" id="cartBackToCart">Zurück zum Warenkorb</button>
   </div>
 </aside>
@@ -1354,8 +1367,11 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
     lines.forEach(function(l){
       var p = PRODUCTS[l.id];
       if(!p || l.qty <= 0) return;
-      if(p.note && !l.uid){ l.uid = newUid(); l.note = l.note || ''; }
-      if(!p.note){ delete l.uid; delete l.note; }
+      var own = p.note || p.logo;                 // eigene Zeile je Stück (Text bzw. Logo gehört dazu)
+      if(own && !l.uid) l.uid = newUid();
+      if(p.note) l.note = l.note || ''; else delete l.note;
+      if(!p.logo) delete l.logo;
+      if(!own) delete l.uid;
       // Auswahl: je Option ein Index, ungültige -> erster Wert
       l.opts = optsOf(p).map(function(o, i){
         var v = l.opts && l.opts[i];
@@ -1407,7 +1423,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
     list.forEach(function(p, i){
       if(!p || !p.id) return;
       next[p.id] = { name:p.name, price:Number(p.price) || 0, image:imagesOf(p)[0] || null, icon:p.icon || null, parts: Array.isArray(p.parts) && p.parts.length ? p.parts : [''],
-        note: p.note === true, noteLabel: p.noteLabel || 'Dein Text',
+        note: p.note === true, noteLabel: p.noteLabel || 'Dein Text', logo: p.logo === true,
         options: (Array.isArray(p.options) ? p.options : []).filter(function(o){ return o && o.name && Array.isArray(o.values) && o.values.length; }) };
       var el = document.createElement('article');
       el.className = 'product reveal';
@@ -1418,6 +1434,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
         '<p class="product-desc">' + esc(p.desc) + '</p>' +
         (p.linkUrl ? '<a class="product-link" href="' + esc(p.linkUrl) + '" target="_blank" rel="noopener">📄 ' + esc(p.linkLabel || 'Anleitung (PDF)') + '</a>' : '') +
         (next[p.id].note ? '<p class="product-note">✎ ' + esc(next[p.id].noteLabel) + ' – im Warenkorb eintragen</p>' : '') +
+        (next[p.id].logo ? '<p class="product-note logo">◆ Für Firmen auch mit eurem eigenen Logo</p>' : '') +
         (next[p.id].options.length ? '<p class="product-note opt">☰ ' + esc(next[p.id].options.map(function(o){ return o.name; }).join(' · ')) + ' im Warenkorb wählbar</p>' : '') +
         cardColorsHTML(next[p.id]) +
         '<div class="product-foot">' +
@@ -1489,6 +1506,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
   var cartOverlay   = document.getElementById('cartOverlay');
   var checkoutView  = document.getElementById('cartCheckoutView');
   var cartCloseBtn  = document.getElementById('cartClose');
+  var logoReqBtn    = document.getElementById('cartLogoRequest');
 
   function colorPickerHTML(line, li){
     var p = PRODUCTS[line.id];
@@ -1550,6 +1568,12 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
             (p.note ? '<label class="cart-note"><span>' + esc(p.noteLabel) + '</span>' +
               '<input type="text" maxlength="60" autocomplete="off" data-note-line="' + li + '" value="' + esc(line.note || '') + '"' +
               ' class="' + (line.note ? '' : 'missing') + '" placeholder="Bitte eintragen"></label>' : '') +
+            (p.logo ? '<div class="cart-logo"><span>Euer Logo statt unserem <em>– optional, für Firmen</em></span>' +
+              (line.logo ? '<div class="cart-logo-file"><b>' + esc(line.logo.name) + '</b>' +
+                '<button type="button" class="cart-item-remove" data-action="logo-remove" data-line="' + li + '">Logo entfernen</button></div>'
+              : '<label class="cart-logo-pick">Logo auswählen (PNG, JPG, SVG, PDF)' +
+                '<input type="file" accept="image/*,.svg,.pdf,application/pdf" data-logo-line="' + li + '" class="vh"></label>') +
+              '</div>' : '') +
             '<div class="cart-item-qty">' +
               '<button class="qty-btn" type="button" data-action="dec" data-line="' + li + '" aria-label="Weniger ' + n + '">&minus;</button>' +
               '<span>' + line.qty + '</span>' +
@@ -1631,10 +1655,13 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
         (optsOf(p).length ? '<small class="checkout-note">' + esc(optionSummary(line)) + '</small>' : '') +
         (p.note ? '<small class="checkout-note' + (line.note ? '' : ' missing') + '">' + esc(p.noteLabel) + ': ' +
           (line.note ? '„' + esc(line.note) + '“' : 'noch nicht eingetragen') + '</small>' : '') +
+        (p.logo && line.logo ? '<small class="checkout-note">Eigenes Logo: ' + esc(line.logo.name) + '</small>' : '') +
         '</span><span>' + formatPrice(p.price * line.qty) + '</span>';
       listEl.appendChild(row);
     });
     document.getElementById('cartCheckoutTotal').textContent = formatPrice(cartTotal());
+    var withLogo = lines.filter(function(l){ return l.logo; });
+    logoReqBtn.hidden = !withLogo.length;
     cartItemsEl.hidden = true;
     cartEmptyEl.hidden = true;
     cartFooterEl.hidden = true;
@@ -1657,6 +1684,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
     var line = lines[li];
     if(!line) return;
     if(action === 'color') return setColor(li, Number(btn.getAttribute('data-slot')), btn.getAttribute('data-fil'));
+    if(action === 'logo-remove'){ delete line.logo; return renderCart(); }
     if(action === 'inc')      line.qty += 1;
     else if(action === 'dec') line.qty = Math.max(0, line.qty - 1);
     else if(action === 'remove') line.qty = 0;
@@ -1675,6 +1703,17 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
     if(idx < 0){ var k = keyOf(line); for(var i = 0; i < lines.length; i++) if(keyOf(lines[i]) === k){ idx = i; break; } }
     var again = cartItemsEl.querySelector('select[data-opt-line="' + idx + '"][data-opt="' + oi + '"]');
     if(again) again.focus();
+  });
+  /* Firmenlogo je Zeile merken (bleibt im Browser, bis die Anfrage gesendet wird) */
+  cartItemsEl.addEventListener('change', function(e){
+    var inp = e.target.closest('input[data-logo-line]');
+    if(!inp || !inp.files || !inp.files[0]) return;
+    var line = lines[Number(inp.getAttribute('data-logo-line'))];
+    var f = inp.files[0];
+    if(!line) return;
+    if(f.size > 7 * 1024 * 1024){ alert('Das Logo ist zu groß (max. 7 MB).'); return; }
+    line.logo = f;
+    renderCart();
   });
   /* Kundentext mitschreiben, ohne neu zu zeichnen (Fokus/Cursor bleiben) */
   cartItemsEl.addEventListener('input', function(e){
@@ -1702,6 +1741,18 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
   document.getElementById('cartShopLink').addEventListener('click', closeCart);
   document.getElementById('cartCheckout').addEventListener('click', showCheckout);
   document.getElementById('cartBackToCart').addEventListener('click', hideCheckout);
+  /* Logo-Anfrage: Produkte + Logos ins Anfrage-Formular übernehmen (das kommt wirklich bei uns an) */
+  logoReqBtn.addEventListener('click', function(){
+    var withLogo = lines.filter(function(l){ return l.logo; });
+    var text = 'Firmenanfrage – bitte mit unserem eigenen Logo statt des Printer-Brothers-Logos:\n' +
+      lines.map(function(l){
+        var p = PRODUCTS[l.id], extra = [colorSummary(l), optsOf(p).length ? optionSummary(l) : '', l.note ? p.noteLabel + ': ' + l.note : '',
+          l.logo ? 'Eigenes Logo: ' + l.logo.name : ''].filter(Boolean).join(' · ');
+        return '• ' + l.qty + '× ' + p.name + (extra ? ' (' + extra + ')' : '');
+      }).join('\n') + '\n';
+    closeCart();
+    if(window.pbAnfrage) window.pbAnfrage(text, withLogo.map(function(l){ return l.logo; }));
+  });
   document.addEventListener('keydown', function(e){
     if(e.key === 'Escape' && cartDrawer.classList.contains('open')) closeCart();
   });
@@ -1725,6 +1776,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
 
   // Handyfotos sind oft 5–10 MB: verkleinern auf max. 1800 px, als JPEG
   function shrink(file){
+    if(!/^image\/(jpeg|png|webp|heic|heif)/.test(file.type) && !/\.(heic|heif)$/i.test(file.name)) return Promise.resolve(file); // SVG/PDF/GIF: Original
     return new Promise(function(resolve){
       var url = URL.createObjectURL(file);
       var img = new Image();
@@ -1750,8 +1802,10 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
     list.innerHTML = '';
     fotos.forEach(function(f, i){
       var li = document.createElement('li');
-      li.innerHTML = '<img alt=""><button type="button" aria-label="Foto entfernen">✕</button>';
-      li.querySelector('img').src = f.url;
+      var pic = /^image\//.test(f.file.type);
+      li.innerHTML = (pic ? '<img alt="">' : '<span class="photo-doc">' + (f.file.name.split('.').pop() || 'Datei').toUpperCase() + '</span>') +
+        '<button type="button" aria-label="Datei entfernen">✕</button>';
+      if(pic) li.querySelector('img').src = f.url;
       li.querySelector('button').addEventListener('click', function(){
         URL.revokeObjectURL(f.url); fotos.splice(i, 1); render();
       });
@@ -1762,8 +1816,8 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
 
   async function addFiles(files){
     hideStatus();
-    var imgs = Array.prototype.filter.call(files, function(f){ return /^image\//.test(f.type) || /\.(heic|heif)$/i.test(f.name); });
-    if(imgs.length < files.length) showStatus('err', 'Nur Bilder können mitgeschickt werden.');
+    var imgs = Array.prototype.filter.call(files, function(f){ return /^image\//.test(f.type) || f.type === 'application/pdf' || /\.(heic|heif|svg|pdf)$/i.test(f.name); });
+    if(imgs.length < files.length) showStatus('err', 'Nur Bilder, SVG oder PDF können mitgeschickt werden.');
     var room = MAX_FOTOS - fotos.length;
     if(imgs.length > room) showStatus('err', 'Maximal ' + MAX_FOTOS + ' Fotos – die übrigen wurden weggelassen.');
     for(var i = 0; i < Math.min(room, imgs.length); i++){
@@ -1775,6 +1829,16 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
   }
 
   input.addEventListener('change', function(){ addFiles(input.files); input.value = ''; });
+  /* Vom Warenkorb aus: Text vorbelegen, Logos anhängen, zum Formular scrollen */
+  window.pbAnfrage = function(text, files){
+    var idee = document.getElementById('cf-idee');
+    idee.value = text + (idee.value ? '\n' + idee.value : '');
+    addFiles(files || []).then(function(){
+      document.getElementById('kontakt').scrollIntoView({ behavior:'smooth', block:'start' });
+      setTimeout(function(){ document.getElementById('cf-name').focus({ preventScroll:true }); }, 600);
+      showStatus('ok', 'Produkte und Logo sind eingetragen – bitte noch Name und E-Mail ergänzen und „Anfrage senden“ drücken.');
+    });
+  };
   ['dragenter', 'dragover'].forEach(function(ev){ pick.addEventListener(ev, function(e){ e.preventDefault(); pick.classList.add('drag'); }); });
   ['dragleave', 'drop'].forEach(function(ev){ pick.addEventListener(ev, function(){ pick.classList.remove('drag'); }); });
   pick.addEventListener('drop', function(e){ e.preventDefault(); addFiles(e.dataTransfer.files); });

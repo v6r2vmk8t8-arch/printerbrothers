@@ -18,6 +18,7 @@ Letzter erfolgreich veröffentlichter Stand: Commit `dd6dc8a` (Admin-Reiter „3
 | Shopbilder Noppen-Ringe liegend/rund | Branch | `/images/noppen-ring-*.jpg` |
 | Produkt-Link (z. B. PDF-Anleitung): Feld „Link-Text/Link-Adresse“ im Admin, Link unter der Beschreibung im Shop | Branch | `/admin` → Produkt bearbeiten; Shop-Karte |
 | PDF `public/anleitungen/formel-pb-bauanleitung.pdf` | Branch | `/anleitungen/formel-pb-bauanleitung.pdf` |
+| Firmenlogo: Schalter im Admin „Firmen können ihr eigenes Logo mitschicken“; im Warenkorb Logo-Feld je Stück; „Logo-Anfrage an uns senden“ übernimmt Produkte + Logo ins Anfrage-Formular (SVG/PDF jetzt erlaubt) | Branch | Shop-Karte „◆ Für Firmen …“, Warenkorb, Formular `#kontakt` |
 
 Die ersten Zeilen liegen schon auf `main` (Deploy pausiert), die letzten zwei nur auf dem Branch
 `claude/gifted-ritchie-pe23g2` – dort liegen auch alle aktuellen STLs, Skripte und die Formel-PB-Bauanleitung.
@@ -32,6 +33,8 @@ Die ersten Zeilen liegen schon auf `main` (Deploy pausiert), die letzten zwei nu
 4. **Nach dem Deploy:** beim Produkt `formel-modellbausatz` per Admin-API `linkLabel: "Bauanleitung (PDF)"`,
    `linkUrl: "/anleitungen/formel-pb-bauanleitung.pdf"` setzen (vorher speichert der alte Server das Feld nicht).
    Produkt ist sichtbar (24,90 €, vom Nutzer bestätigt).
+   **Firmenlogo einschalten** (`logo: true`) bei allen Produkten mit PB-Logo/Schriftzug:
+   `kaffeeklipp`, `taschen-disc`, `stand`, `staender-z`, `formel-modellbausatz` – danach Testbestellung mit Logo bis ins Formular.
 5. Diese Datei danach löschen.
 
 ## Ab jetzt sparsam deployen

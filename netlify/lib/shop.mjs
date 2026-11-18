@@ -101,7 +101,9 @@ export function sanitizeList(input) {
     let linkUrl = str(p?.linkUrl, 300);
     if (!/^\/anleitungen\/[A-Za-z0-9._-]+$/.test(linkUrl) && !/^https:\/\/[^\s"'<>]+$/.test(linkUrl)) linkUrl = "";
     const linkLabel = linkUrl ? str(p?.linkLabel, 40) || "Anleitung (PDF)" : "";
-    return { id, name, desc: str(p?.desc, 240), price, image, images, icon: image ? null : icon, parts, note, noteLabel, options, linkLabel, linkUrl, visible: p?.visible !== false };
+    // Optional: Firmen schicken ihr eigenes Logo mit (statt des Printer-Brothers-Logos)
+    const logo = p?.logo === true;
+    return { id, name, desc: str(p?.desc, 240), price, image, images, icon: image ? null : icon, parts, note, noteLabel, logo, options, linkLabel, linkUrl, visible: p?.visible !== false };
   });
 }
 
