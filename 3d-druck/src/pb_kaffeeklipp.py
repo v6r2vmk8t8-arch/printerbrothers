@@ -31,15 +31,15 @@ OPEN_DEG = 4.0    # Druckstellung: Arm B um 4° geöffnet (diagonal aufs Bett)
 # Gelenk (print-in-place, 45°-Kegel statt Brücken)
 R_K = 8.5         # Außenradius der Gelenkscheiben
 R_PIN = 5.0       # Bolzen (Ø 10 mm)
-CL = 0.4          # radiales Spiel
-GZ = 0.6          # vertikales Spiel an den Kegeln
+CL = 0.3          # radiales Spiel (v3: 0.4 -> 0.3, Gelenk wackelte)
+GZ = 0.45         # vertikales Spiel an den Kegeln (v3: 0.6 -> 0.45 = 0.32 mm Normalspalt am 45°-Kegel)
 Z_A1 = 2.0        # Oberkante untere A-Scheibe (bei R_K)
 Z_B2 = 11.2       # Oberkante B-Scheibe (bei R_K)
 
 # Schnappverschluss (am Ende hinter dem Ausgießer, eingerahmt von massivem Endblock)
 FINGER_T = 2.6    # Federfinger, freie Länge ~21 mm -> Dehnung < 0.9 %
-BARB = 1.7        # Fangnase ragt 1.7 mm über die Spitze von Arm B (v2: +0.5 mm, hält sicherer)
-BARB_RAMP = 2.7   # Höhe der Einlaufschräge (proportional zur Fangnase)
+BARB = 2.2        # Fangnase ragt 2.2 mm über die Spitze von Arm B (v3: +0.5 mm, Klipp ging von selbst auf)
+BARB_RAMP = 3.5   # Höhe der Einlaufschräge (gleicher Winkel wie bisher)
 BULGE = 6.0       # Verstärkungsbalken unter dem Finger (6 x 14 mm)
 END_L = 14.0      # Länge Endblock hinter Arm B
 
@@ -388,7 +388,7 @@ def checks(A, B, sleeve, base, g, w):
         inter = (rest ^ Bt).volume() + (sl ^ Bt).volume()
         gap = min(rest.min_gap(Bt, 2.0), sl.min_gap(Bt, 2.0))
         latch = (A ^ Bt).volume() - (rest ^ Bt).volume()
-        flag = "OK" if inter < 1e-3 and gap >= 0.3 else "!!"
+        flag = "OK" if inter < 1e-3 and gap >= 0.25 else "!!"   # Gelenk: 0.3 radial / 0.32 am Kegel
         ok &= flag == "OK"
         note = f", Schnapper überdeckt {latch:.1f} mm³ (rastet ein)" if latch > 1e-3 else ""
         print(f"  Arm B bei {ang:2d}° (Hülse eingesetzt): Überschneidung {inter:.4f} mm³, min. Spalt {gap:.2f} mm  {flag}{note}")
