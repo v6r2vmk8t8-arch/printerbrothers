@@ -4,7 +4,8 @@
 // Ergebnis: rechnungen/pdf/Rechnung_2026-001.pdf
 //
 // Die Rechnungsdaten stehen in einer JSON-Datei (Vorlage: daten/2026-001.json):
-//   nummer, datum (JJJJ-MM-TT), kunde (Zeilen, optional), zahlung (Text, optional),
+//   nummer, datum (JJJJ-MM-TT), kunde (Zeilen, optional), zahlung (Text vor der IBAN, optional),
+//   ust_satz (optional, Standard 20),
 //   positionen: [{ produkt: "<Shop-ID>", menge, preis?, name?, zusatz?, bild? }]
 // Name, Preis und Vorschaubild kommen aus dem Shop (/api/products); preis/name/bild
 // in der Position überschreiben das. bild darf eine URL oder ein Pfad im Repo sein.
@@ -22,14 +23,20 @@ const REPO = resolve(HIER, '..');
 // ── Absenderdaten (hier ändern, falls sich etwas ändert) ─────────────────────
 const ABSENDER = {
   name: 'Printer Brothers',
-  inhaber: 'Nathanael & Marlon',
+  inhaber: 'Matthias Habringer',          // Rechnungsaussteller (Einzelunternehmer)
+  rechtsform: 'Einzelunternehmer',
+  team: 'Nathanael & Marlon',             // Unterschrift unter dem Dankeschön
   strasse: 'Rosenthal 67/1',
   ort: '2500 Siegenfeld',
   land: 'Österreich',
+  uid: 'ATU69412405',
+  iban: 'AT65 3200 0000 1210 3834',
+  kontoinhaber: 'Matthias Habringer',
   mail: 'Titanael@icloud.com',
   web: 'printerbrothers.netlify.app',
-  steuerhinweis: 'Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.',
 };
+// Shop-Preise sind Bruttopreise; die Umsatzsteuer wird herausgerechnet.
+const UST_SATZ = 20;
 
 const datei = process.argv[2];
 if (!datei) { console.error('Aufruf: node rechnungen/rechnung.mjs <daten.json>'); process.exit(1); }
@@ -68,7 +75,11 @@ for (const pos of R.positionen) {
     bild: await alsDataUrl(pos.bild || p?.image),
   });
 }
-const summe = posten.reduce((s, x) => s + x.menge * x.preis, 0);
+const cent = n => Math.round(n * 100) / 100;
+const summe = cent(posten.reduce((s, x) => s + x.menge * x.preis, 0));        // brutto
+const satz = R.ust_satz ?? UST_SATZ;
+const netto = cent(summe / (1 + satz / 100));
+const ust = cent(summe - netto);
 
 // Logo für dunklen Hintergrund (Kopfband)
 const logo = readFileSync(resolve(REPO, 'public/brand/pb-logo-horizontal-dark-bg.svg'), 'utf8');
@@ -106,7 +117,10 @@ const html = `<!doctype html><html lang="de"><head><meta charset="utf-8">
   .bild div { width: 15mm; height: 15mm; border-radius: 2.5mm; background: #F2F2F3 center/cover no-repeat; border: 0.3mm solid var(--linie); }
   .artikel b { font-weight: 600; font-size: 10.5pt; }
   .artikel small { display: block; color: var(--grau); font-size: 8.5pt; }
-  .summe td { border-bottom: none; padding-top: 4mm; }
+  .summe td { border-bottom: none; padding-top: 1.5mm; padding-bottom: 1.5mm; }
+  .summe.erste td { padding-top: 4mm; }
+  .summe.gesamt td { padding-top: 3mm; }
+  .summe.klein td { color: #333; font-size: 9.5pt; }
   .summe .betrag { font-family: 'Archivo', sans-serif; font-stretch: 112%; font-size: 14pt; font-weight: 800; }
   .summe .label { text-align: right; font-weight: 600; }
   .summe .betrag span { border-bottom: 1.2mm solid var(--gruen); }
@@ -125,7 +139,7 @@ const html = `<!doctype html><html lang="de"><head><meta charset="utf-8">
 <header class="kopf">${logo}<div class="titel"><b>RECHNUNG</b><span>Nr. ${esc(R.nummer)}</span></div></header>
 <div class="streifen"></div>
 <main>
-  <div class="absenderzeile">${esc(ABSENDER.name)} · ${esc(ABSENDER.strasse)} · ${esc(ABSENDER.ort)}</div>
+  <div class="absenderzeile">${esc(ABSENDER.name)} · ${esc(ABSENDER.inhaber)} · ${esc(ABSENDER.strasse)} · ${esc(ABSENDER.ort)}</div>
   <div class="adressblock">
     <div class="kunde">${(R.kunde || []).map(esc).join('<br>')}</div>
     <dl class="meta">
@@ -143,21 +157,24 @@ const html = `<!doctype html><html lang="de"><head><meta charset="utf-8">
         <td class="artikel"><b>${esc(x.name)}</b>${x.zusatz ? `<small>${esc(x.zusatz)}</small>` : ''}</td>
         <td class="zahl">${x.menge}</td><td class="zahl">${eur(x.preis)}</td><td class="zahl">${eur(x.menge * x.preis)}</td>
       </tr>`).join('')}
-      <tr class="summe"><td></td><td></td><td class="label" colspan="2">Gesamtbetrag</td><td class="zahl betrag"><span>${eur(summe)}</span></td></tr>
+      <tr class="summe klein erste"><td></td><td></td><td class="label" colspan="2">Nettobetrag</td><td class="zahl">${eur(netto)}</td></tr>
+      <tr class="summe klein"><td></td><td></td><td class="label" colspan="2">zzgl. ${satz} % USt</td><td class="zahl">${eur(ust)}</td></tr>
+      <tr class="summe gesamt"><td></td><td></td><td class="label" colspan="2">Gesamtbetrag</td><td class="zahl betrag"><span>${eur(summe)}</span></td></tr>
     </tbody>
   </table>
   <div class="hinweise">
-    <p>${esc(ABSENDER.steuerhinweis)}</p>
-    ${R.zahlung ? `<p>${esc(R.zahlung)}</p>` : ''}
+    <p>Alle Preise inkl. ${satz} % Umsatzsteuer.</p>
+    <p>${esc(R.zahlung || 'Bitte den Gesamtbetrag innerhalb von 14 Tagen auf folgendes Konto überweisen:')}<br>
+       <b>IBAN ${esc(ABSENDER.iban)}</b> · lautend auf ${esc(ABSENDER.kontoinhaber)} · Verwendungszweck: Rechnung ${esc(R.nummer)}</p>
   </div>
-  <div class="danke">Danke, dass ihr unsere Drucke unterstützt! <span>— ${esc(ABSENDER.inhaber)}</span></div>
+  <div class="danke">Danke, dass ihr unsere Drucke unterstützt! <span>— ${esc(ABSENDER.team)}</span></div>
 </main>
 <footer>
   <div class="inhalt">
     <div class="marke">${readFileSync(resolve(REPO, 'public/brand/pb-icon.svg'), 'utf8')}
-      <div><b>Printer Brothers</b>${esc(ABSENDER.inhaber)}<br>${esc(ABSENDER.strasse)}<br>${esc(ABSENDER.ort)}, ${esc(ABSENDER.land)}</div></div>
-    <div><b>Kontakt</b>${esc(ABSENDER.mail)}<br>${esc(ABSENDER.web)}</div>
-    <div><b>Hinweis</b>Jedes Stück wird bei uns auf einem Bambu Lab A1 mini gedruckt.</div>
+      <div><b>Printer Brothers</b>${esc(ABSENDER.inhaber)}, ${esc(ABSENDER.rechtsform)}<br>${esc(ABSENDER.strasse)}<br>${esc(ABSENDER.ort)}, ${esc(ABSENDER.land)}</div></div>
+    <div><b>Kontakt</b>${esc(ABSENDER.mail)}<br>${esc(ABSENDER.web)}<br>UID: ${esc(ABSENDER.uid)}</div>
+    <div><b>Bankverbindung</b>IBAN ${esc(ABSENDER.iban)}<br>Kontoinhaber: ${esc(ABSENDER.kontoinhaber)}</div>
   </div>
   <div class="streifen"></div>
 </footer>

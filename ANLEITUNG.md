@@ -61,5 +61,5 @@ E-Mail-Adresse, die der Kunde angegeben hat.
    `produkt` ist die Shop-ID (z. B. `kaffeeklipp`, `stand`) – Name, Preis und Foto kommen
    automatisch aus dem Shop. Abweichend: `preis`, `name`, `zusatz` (z. B. Farbe), `bild`.
 3. `node rechnungen/rechnung.mjs rechnungen/daten/2026-002.json` → PDF in `rechnungen/pdf/`
-Absenderdaten und Steuerhinweis stehen oben in `rechnungen/rechnung.mjs` (`ABSENDER`).
+Absenderdaten (Inhaber, UID, IBAN) und USt-Satz stehen oben in `rechnungen/rechnung.mjs` (`ABSENDER`, `UST_SATZ`). Shop-Preise gelten als Bruttopreise inkl. USt.
 Die fertigen PDFs werden nicht ins Repository übernommen.
