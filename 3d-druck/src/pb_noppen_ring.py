@@ -1,10 +1,9 @@
 """Noppen-Ring: Fingerring mit Bausteinsockel, kompatibel mit gängigen Klemmbausteinen.
 
 Varianten: 1x1 (1 Noppe), 1x2 (2 Noppen), 2x2 (4 Noppen) – je glatt und mit Streifen,
-Innendurchmesser 16–20 mm. Ohne Stützen druckbar:
-  1x1, 1x1-loch, 1x2: LIEGEND (Ringachse senkrecht, Noppen zeigen zur Seite) – Reif rundum rund,
-                      jede Schicht ein geschlossener Kreis (stabil), Muster rundum durchgehend.
-  2x2:                STEHEND (Noppen oben) – der breite Sockel ginge liegend nur mit Stützen.
+Innendurchmesser 15/17/20 mm. Alle Varianten werden STEHEND gedruckt (Noppen oben), ohne Stützen –
+so passen die Noppen nach Testdruck am besten (liegend klemmten die Steine nicht zuverlässig).
+LYING = True schaltet die liegende Variante (Ringachse senkrecht) für 1x1/1x2 wieder ein.
 
 Hinweis: „LEGO“ ist eine geschützte Marke – im Shop z. B. „Noppen-Ring“ nennen.
 
@@ -109,10 +108,13 @@ def tentacles(ro, zc, band_w, lx):
     return Manifold.batch_boolean(bodies, OpType.Add)
 
 
+LYING = False      # Testdruck: liegende Ringe funktionierten nicht – alle stehend
+
+
 def lies_flat(variant):
-    """Druck liegend? Alle außer 2x2 (Sockel breiter als der Reif)."""
+    """Druck liegend? Nur wenn LYING an ist, und nie bei 2x2 (Sockel breiter als der Reif)."""
     nx, ny, band_w = VARIANTS[variant][:3]
-    return ny * PITCH - 2 * GAP <= band_w + 0.01
+    return LYING and ny * PITCH - 2 * GAP <= band_w + 0.01
 
 
 def build(variant, inner_d, stripes, stud_d=None, orient=True):
