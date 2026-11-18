@@ -1,5 +1,5 @@
 // Admin: Login prüfen, Produkte und Filamente speichern, Fotos hochladen
-import { checkAuth, cleanupImages, json, loadFilaments, loadProducts, sanitizeFilaments, sanitizeList, saveFilaments, saveProducts, shopStore } from "../lib/shop.mjs";
+import { checkAuth, cleanupImages, json, loadFilaments, loadProducts, loadSettings, ORDER_STATUS, orderStore, sanitizeFilaments, sanitizeList, sanitizeSettings, saveFilaments, saveProducts, saveSettings, shopStore } from "../lib/shop.mjs";
 
 const TYPES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 const MAX_BYTES = 4 * 1024 * 1024;
@@ -27,6 +27,39 @@ export default async (req) => {
       const list = sanitizeFilaments(await req.json());
       await saveFilaments(list);
       return json({ ok: true, filaments: list });
+    }
+
+    if (route === "settings" && req.method === "GET") return json(await loadSettings());
+
+    if (route === "settings" && req.method === "PUT") {
+      const st = sanitizeSettings(await req.json());
+      await saveSettings(st);
+      return json({ ok: true, settings: st });
+    }
+
+    if (route === "orders" && req.method === "GET") {
+      const store = orderStore();
+      const { blobs } = await store.list({ prefix: "o/" });
+      const orders = (await Promise.all(blobs.map((b) => store.get(b.key, { type: "json" })))).filter(Boolean);
+      orders.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+      return json(orders);
+    }
+
+    const om = route.match(/^orders\/(PB-\d{6}-[A-Z0-9]{4})$/);
+    if (om && req.method === "PUT") {
+      const store = orderStore();
+      const key = "o/" + om[1] + ".json";
+      const order = await store.get(key, { type: "json" });
+      if (!order) return json({ error: "Bestellung nicht gefunden." }, 404);
+      const body = await req.json();
+      if (body.status !== undefined) {
+        if (!ORDER_STATUS.includes(body.status)) return json({ error: "Status ungültig." }, 400);
+        order.status = body.status;
+      }
+      if (body.adminNote !== undefined) order.adminNote = String(body.adminNote).slice(0, 500);
+      order.updatedAt = new Date().toISOString();
+      await store.setJSON(key, order);
+      return json({ ok: true, order });
     }
 
     if (route === "upload" && req.method === "POST") {

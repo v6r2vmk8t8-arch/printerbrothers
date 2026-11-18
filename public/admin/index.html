@@ -138,6 +138,23 @@ details.fgroup>summary::-webkit-details-marker{display:none}
 details.fgroup>summary::before{content:"▸ ";color:var(--ink-soft)}
 details.fgroup[open]>summary::before{content:"▾ "}
 details.fgroup .list{margin-top:8px}
+.tabs{overflow-x:auto;scrollbar-width:none}
+.tabs button{flex:1 0 auto !important;padding:0 12px}
+.badge-new{min-width:18px;height:18px;border-radius:9px;background:var(--pla, #FF7A2F);color:#000;font-size:.7rem;display:inline-grid;place-items:center;padding:0 5px}
+.order{background:var(--plate);border:1px solid var(--line);border-radius:var(--r-md);padding:12px 14px}
+.order summary{cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:4px 12px;list-style:none}
+.order summary::-webkit-details-marker{display:none}
+.order .o-num{font-family:ui-monospace,monospace;font-weight:700}
+.order .o-sum{font-weight:700;text-align:right}
+.order .o-sub{color:var(--ink-soft);font-size:.85rem}
+.order .o-body{margin-top:12px;border-top:1px solid var(--line);padding-top:12px;display:grid;gap:10px;font-size:.92rem}
+.order .o-items{margin:0;padding-left:18px}
+.order select,.order textarea{font:inherit;background:var(--plate-2);color:var(--ink);border:1px solid var(--line-strong);border-radius:6px;padding:6px 8px}
+.order textarea{width:100%;min-height:56px}
+.st{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;border:1px solid var(--line-strong);justify-self:end}
+.st-neu{color:#FF7A2F;border-color:rgba(255,122,47,.5)}
+.st-bezahlt,.st-in{color:#39FF14;border-color:rgba(57,255,20,.4)}
+.settings{max-width:560px}
 .tabs{display:flex;gap:4px;background:var(--plate);border:1px solid var(--line);border-radius:var(--r-sm);padding:4px;margin-bottom:18px}
 .tabs button{flex:1;min-height:40px;border:0;background:none;border-radius:4px;color:var(--ink-soft);font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .2s,color .2s}
 .tabs button[aria-selected=true]{background:var(--plate-3);color:var(--ink)}
@@ -155,7 +172,7 @@ details.fgroup .list{margin-top:8px}
 
 /* Farbteile im Produkt-Editor */
 .seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:var(--r-sm);overflow:hidden}
-.seg button{min-width:44px;min-height:40px;border:0;background:none;cursor:pointer;font-weight:600;color:var(--ink-soft)}
+.seg button{min-width:44px;min-height:40px;padding:0 12px;border:0;background:none;cursor:pointer;font-weight:600;color:var(--ink-soft)}
 .seg button+button{border-left:1px solid var(--line)}
 .seg button[aria-pressed=true]{background:var(--filament);color:var(--void)}
 .opts{display:grid;gap:8px;margin:0 0 6px}
@@ -230,6 +247,8 @@ details.fgroup .list{margin-top:8px}
       <button type="button" role="tab" id="tabProducts" aria-selected="true">Produkte</button>
       <button type="button" role="tab" id="tabFilaments" aria-selected="false"><span class="dots" id="tabDots"></span>Filamente</button>
       <button type="button" role="tab" id="tabFiles" aria-selected="false">3D-Dateien</button>
+      <button type="button" role="tab" id="tabOrders" aria-selected="false"><span class="badge-new" id="ordersNew" hidden></span>Bestellungen</button>
+      <button type="button" role="tab" id="tabSettings" aria-selected="false">Einstellungen</button>
     </div>
 
     <section id="productsPane">
@@ -251,6 +270,44 @@ details.fgroup .list{margin-top:8px}
       </div>
       <p class="hint" style="margin:-6px 0 14px">Nur vorrätige Farben können Kund:innen im Warenkorb auswählen.</p>
       <div class="list" id="filList"></div>
+    </section>
+
+    <section id="ordersPane" hidden>
+      <div class="intro"><div><h1>Bestellungen</h1><p id="ordersInfo">Lädt …</p></div>
+        <button class="btn btn-ghost btn-sm" type="button" id="ordersReload">Aktualisieren</button></div>
+      <div class="seg" id="ordersFilter" role="group" aria-label="Filter" style="margin-bottom:12px">
+        <button type="button" data-f="offen" aria-pressed="true">Offen</button>
+        <button type="button" data-f="alle" aria-pressed="false">Alle</button>
+      </div>
+      <div class="list" id="ordersList"></div>
+    </section>
+
+    <section id="settingsPane" hidden>
+      <div class="intro"><div><h1>Einstellungen</h1><p>Versand, Abholung und Zahlung im Shop.</p></div></div>
+      <form id="settingsForm" class="settings" novalidate>
+        <label class="switch" style="margin-bottom:14px"><input type="checkbox" id="sOpen"> Shop nimmt Bestellungen an</label>
+        <h2 class="files-h">Versand (inkl. USt)</h2>
+        <div class="row2">
+          <label class="field"><span>Österreich in €</span><input type="text" id="sShipAT" inputmode="decimal"></label>
+          <label class="field"><span>Deutschland in €</span><input type="text" id="sShipDE" inputmode="decimal"></label>
+        </div>
+        <label class="field"><span>Versandkostenfrei ab € Warenwert (0 = nie)</span><input type="text" id="sFree" inputmode="decimal"></label>
+        <label class="switch" style="margin-bottom:8px"><input type="checkbox" id="sPickup"> Abholung möglich</label>
+        <label class="field"><span>Text zur Abholung</span><input type="text" id="sPickupText" maxlength="120"></label>
+        <h2 class="files-h">Zahlung</h2>
+        <label class="switch" style="margin-bottom:8px"><input type="checkbox" id="sTransfer"> Überweisung (Vorkasse)</label>
+        <label class="switch" style="margin-bottom:8px"><input type="checkbox" id="sPaypal"> PayPal (nur mit PayPal.me-Name)</label>
+        <label class="switch" style="margin-bottom:14px"><input type="checkbox" id="sCash"> Bar bei Abholung</label>
+        <label class="field"><span>PayPal.me-Name (z. B. printerbrothers → paypal.me/printerbrothers)</span><input type="text" id="sPaypalMe" maxlength="40"></label>
+        <h2 class="files-h">Bankverbindung (wird nach der Bestellung angezeigt)</h2>
+        <label class="field"><span>Kontoinhaber</span><input type="text" id="sHolder" maxlength="70"></label>
+        <label class="field"><span>IBAN</span><input type="text" id="sIban" maxlength="40" autocomplete="off"></label>
+        <div class="row2">
+          <label class="field"><span>BIC</span><input type="text" id="sBic" maxlength="11"></label>
+          <label class="field"><span>Bank</span><input type="text" id="sBank" maxlength="60"></label>
+        </div>
+        <button class="btn btn-primary" type="submit" id="sSave">Speichern</button>
+      </form>
     </section>
 
     <section id="filesPane" hidden>
@@ -437,7 +494,7 @@ details.fgroup .list{margin-top:8px}
   }
 
   /* ---------- Login ---------- */
-  function showApp(){ $('loginView').hidden = true; $('appView').hidden = false; refresh(); refreshFilaments(); }
+  function showApp(){ $('loginView').hidden = true; $('appView').hidden = false; refresh(); refreshFilaments(); refreshOrders(); }
   function logout(){
     pw = ''; store('pbpw');
     $('appView').hidden = true; $('loginView').hidden = false;
@@ -815,17 +872,107 @@ details.fgroup .list{margin-top:8px}
     $('tabProducts').setAttribute('aria-selected', String(t === 'products'));
     $('tabFilaments').setAttribute('aria-selected', String(t === 'filaments'));
     $('tabFiles').setAttribute('aria-selected', String(t === 'files'));
+    $('tabOrders').setAttribute('aria-selected', String(t === 'orders'));
+    $('tabSettings').setAttribute('aria-selected', String(t === 'settings'));
+    $('ordersPane').hidden = t !== 'orders';
+    $('settingsPane').hidden = t !== 'settings';
+    if(t === 'orders') refreshOrders();
+    if(t === 'settings') loadSettingsForm();
     $('productsPane').hidden = t !== 'products';
     $('filamentsPane').hidden = t !== 'filaments';
     $('filesPane').hidden = t !== 'files';
     $('addBtn').textContent = t === 'filaments' ? '+ Neues Filament' : '+ Neues Produkt';
-    $('addBtn').hidden = t === 'files';          // bei den 3D-Dateien stört der schwebende Knopf beim Suchen
+    $('addBtn').hidden = t === 'files' || t === 'orders' || t === 'settings';  // dort stört der schwebende Knopf
     if(t === 'files' && !filesLoaded) refreshFiles();
     window.scrollTo(0, 0);
   }
   $('tabProducts').addEventListener('click', function(){ setTab('products'); });
   $('tabFilaments').addEventListener('click', function(){ setTab('filaments'); });
   $('tabFiles').addEventListener('click', function(){ setTab('files'); });
+  $('tabOrders').addEventListener('click', function(){ setTab('orders'); });
+  $('tabSettings').addEventListener('click', function(){ setTab('settings'); });
+
+  /* ---------- Bestellungen ---------- */
+  var orders = [], orderFilter = 'offen';
+  var STATUS = ['neu', 'bezahlt', 'in Arbeit', 'versendet', 'abgeholt', 'storniert'];
+  var DEL = { AT:'Versand AT', DE:'Versand DE', pickup:'Abholung' };
+  var PAY = { transfer:'Überweisung', paypal:'PayPal', cash:'Bar' };
+  function refreshOrders(){
+    $('ordersInfo').textContent = 'Lädt …';
+    return api('orders').then(function(list){ orders = list; renderOrders(); })
+      .catch(function(ex){ $('ordersInfo').textContent = ex.message; });
+  }
+  function renderOrders(){
+    var open = orders.filter(function(o){ return ['neu', 'bezahlt', 'in Arbeit'].indexOf(o.status) >= 0; });
+    var nNew = orders.filter(function(o){ return o.status === 'neu'; }).length;
+    $('ordersNew').hidden = !nNew; $('ordersNew').textContent = nNew;
+    var show = orderFilter === 'offen' ? open : orders;
+    $('ordersInfo').textContent = orders.length ? (open.length + ' offen · ' + orders.length + ' insgesamt') : 'Noch keine Bestellungen.';
+    var list = $('ordersList'); list.innerHTML = '';
+    if(!show.length){ list.innerHTML = '<div class="empty">' + (orders.length ? 'Keine offenen Bestellungen 🎉' : 'Noch keine Bestellungen.') + '</div>'; return; }
+    show.forEach(function(o){
+      var c = o.customer || {};
+      var d = document.createElement('details'); d.className = 'order';
+      var date = new Date(o.createdAt).toLocaleString('de-AT', { dateStyle:'medium', timeStyle:'short' });
+      d.innerHTML = '<summary><span class="o-num">' + escH(o.number) + '</span><span class="o-sum">' + euro(o.total) + '</span>' +
+        '<span class="o-sub">' + escH(c.name || '') + ' · ' + date + ' · ' + DEL[o.delivery] + ' · ' + PAY[o.payment] + '</span>' +
+        '<span class="st st-' + escH(o.status.split(' ')[0]) + '">' + escH(o.status) + '</span></summary>' +
+        '<div class="o-body"><ul class="o-items">' + o.items.map(function(i){
+          var ex = [];
+          if((i.colors || []).some(Boolean)) ex.push(i.colors.map(function(cl, k){ return (i.parts && i.parts.length > 1 && i.parts[k] ? i.parts[k] + ': ' : '') + cl; }).join(', '));
+          (i.opts || []).forEach(function(x){ ex.push(x.name + ': ' + x.value); });
+          if(i.note) ex.push(i.noteLabel + ': „' + i.note + '“');
+          if(i.logo) ex.push('Eigenes Logo: ' + i.logo + ' (Datei in der Netlify-Formular-Mail)');
+          return '<li>' + i.qty + '× ' + escH(i.name) + ' à ' + euro(i.price) + (ex.length ? '<br><small>' + escH(ex.join(' · ')) + '</small>' : '') + '</li>';
+        }).join('') + '</ul>' +
+        '<div>Zwischensumme ' + euro(o.subtotal) + ' · Versand ' + euro(o.shipping) + ' · <b>Gesamt ' + euro(o.total) + '</b> <small>(inkl. ' + o.vatRate + ' % USt ' + euro(o.vat) + ')</small></div>' +
+        '<div><b>' + escH(c.name || '') + '</b><br><a href="mailto:' + escH(c.email || '') + '?subject=' + encodeURIComponent('Eure Bestellung ' + o.number) + '">' + escH(c.email || '') + '</a>' +
+          (c.phone ? '<br>' + escH(c.phone) : '') + (o.delivery !== 'pickup' ? '<br>' + escH(c.street || '') + '<br>' + escH((c.zip || '') + ' ' + (c.city || '')) + '<br>' + escH(c.country || '') : '<br>Abholung') + '</div>' +
+        (o.message ? '<div>Nachricht: „' + escH(o.message) + '“</div>' : '') +
+        '<label>Status <select>' + STATUS.map(function(st){ return '<option' + (st === o.status ? ' selected' : '') + '>' + st + '</option>'; }).join('') + '</select></label>' +
+        '<label>Interne Notiz<textarea maxlength="500">' + escH(o.adminNote || '') + '</textarea></label>' +
+        '<button class="btn btn-primary btn-sm" type="button">Speichern</button></div>';
+      d.querySelector('button').addEventListener('click', function(){
+        var body = { status: d.querySelector('select').value, adminNote: d.querySelector('textarea').value };
+        api('orders/' + encodeURIComponent(o.number), { method:'PUT', headers:{ 'content-type':'application/json' }, body: JSON.stringify(body) })
+          .then(function(r){ Object.assign(o, r.order); toast('Gespeichert ✓'); renderOrders(); })
+          .catch(function(ex){ toast(ex.message, 'err'); });
+      });
+      list.appendChild(d);
+    });
+  }
+  $('ordersReload').addEventListener('click', refreshOrders);
+  $('ordersFilter').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-f]'); if(!b) return;
+    orderFilter = b.getAttribute('data-f');
+    Array.prototype.forEach.call(this.querySelectorAll('button'), function(x){ x.setAttribute('aria-pressed', String(x === b)); });
+    renderOrders();
+  });
+
+  /* ---------- Einstellungen ---------- */
+  function num(s){ var n = parsePrice(String(s || '0')); return isNaN(n) ? NaN : n; }
+  function loadSettingsForm(){
+    return api('settings').then(function(st){
+      var f2 = function(n){ return Number(n).toFixed(2).replace('.', ','); };
+      $('sOpen').checked = st.open; $('sShipAT').value = f2(st.shipping.AT); $('sShipDE').value = f2(st.shipping.DE);
+      $('sFree').value = f2(st.freeFrom); $('sPickup').checked = st.pickup.enabled; $('sPickupText').value = st.pickup.text;
+      $('sTransfer').checked = st.payments.transfer; $('sPaypal').checked = st.payments.paypal; $('sCash').checked = st.payments.cash;
+      $('sPaypalMe').value = st.paypalMe; $('sHolder').value = st.bank.holder; $('sIban').value = st.bank.iban; $('sBic').value = st.bank.bic; $('sBank').value = st.bank.name;
+    }).catch(function(ex){ toast(ex.message, 'err'); });
+  }
+  $('settingsForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var at = num($('sShipAT').value), de = num($('sShipDE').value), fr = num($('sFree').value);
+    if([at, de, fr].some(isNaN)) return toast('Bitte Beträge wie 5,90 eingeben.', 'err');
+    var st = { open:$('sOpen').checked, shipping:{ AT:at, DE:de }, freeFrom:fr,
+      pickup:{ enabled:$('sPickup').checked, text:$('sPickupText').value.trim() },
+      payments:{ transfer:$('sTransfer').checked, paypal:$('sPaypal').checked, cash:$('sCash').checked },
+      paypalMe:$('sPaypalMe').value.trim(),
+      bank:{ holder:$('sHolder').value.trim(), iban:$('sIban').value.trim(), bic:$('sBic').value.trim(), name:$('sBank').value.trim() } };
+    api('settings', { method:'PUT', headers:{ 'content-type':'application/json' }, body: JSON.stringify(st) })
+      .then(function(){ toast('Einstellungen gespeichert ✓'); loadSettingsForm(); })
+      .catch(function(ex){ toast(ex.message, 'err'); });
+  });
 
   /* ---------- 3D-Dateien ---------- */
   var FCHUNK = 4 * 1024 * 1024;

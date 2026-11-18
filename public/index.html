@@ -30,9 +30,7 @@
   apply();
 })();
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..900&family=Instrument+Sans:wght@400..600&family=Azeret+Mono:wght@400..700&display=swap" rel="stylesheet">
+<link href="/fonts/fonts.css" rel="stylesheet">
 
 <style>
 /* ============================================================
@@ -628,6 +626,43 @@ header.nav{
 .cart-close svg{ width:16px; height:16px; display:block; }
 .cart-close:hover{ color:var(--ink); border-color:var(--ink-soft); }
 
+.checkout-form{ display:flex; flex-direction:column; gap:1rem; margin:1.2rem 0 1rem; }
+.checkout-form fieldset{ border:0; margin:0; padding:0; display:flex; flex-direction:column; gap:0.6rem; }
+.checkout-form fieldset[hidden]{ display:none; }
+.checkout-form legend{ font:600 0.72rem "Azeret Mono", monospace; letter-spacing:0.06em; text-transform:uppercase; color:var(--data); margin-bottom:0.4rem; }
+.co-field{ display:flex; flex-direction:column; gap:0.3rem; font-size:0.8rem; color:var(--ink-soft); }
+.co-field em{ font-style:normal; opacity:.75; }
+.co-field input, .co-field textarea{ font:inherit; font-size:0.95rem; color:var(--ink); background:var(--plate-2); border:1px solid var(--line-strong);
+  border-radius:var(--r-sm); padding:0.6rem 0.7rem; width:100%; }
+.co-field input:focus, .co-field textarea:focus{ outline:none; border-color:var(--filament-line); box-shadow:0 0 0 3px var(--filament-soft); }
+.co-field input.bad{ border-color:var(--pla); }
+.co-row{ display:grid; grid-template-columns:6.5rem 1fr; gap:0.6rem; }
+.choice{ display:flex; flex-direction:column; gap:0.45rem; }
+.choice label{ display:flex; gap:0.6rem; align-items:flex-start; padding:0.6rem 0.75rem; border:1px solid var(--line-strong); border-radius:var(--r-sm); cursor:pointer; font-size:0.9rem; }
+.choice label:has(input:checked){ border-color:var(--filament-line); background:var(--filament-soft); }
+.choice input{ accent-color:var(--filament); margin-top:0.25rem; }
+.choice b{ font-weight:600; }
+.choice small{ display:block; color:var(--ink-soft); font-size:0.78rem; }
+.choice .price-tag{ margin-left:auto; font-family:"Azeret Mono", monospace; font-size:0.85rem; white-space:nowrap; }
+.co-sum{ display:flex; flex-direction:column; gap:0.3rem; border-top:1px solid var(--line); padding-top:0.8rem; font-size:0.9rem; }
+.co-sum > div{ display:flex; justify-content:space-between; }
+.co-total{ font-weight:700; font-size:1.05rem; }
+.co-vat{ color:var(--ink-soft); font-size:0.78rem; justify-content:flex-end !important; }
+.co-personal{ font-size:0.8rem; color:var(--pla); margin:0; }
+.co-accept{ display:flex; gap:0.6rem; font-size:0.82rem; color:var(--ink-soft); align-items:flex-start; }
+.co-accept input{ accent-color:var(--filament); margin-top:0.2rem; }
+.co-accept a, .co-done a{ color:var(--filament); }
+.co-done a.btn{ color:var(--void); text-decoration:none; display:inline-flex; }
+.co-error{ color:var(--pla); font-size:0.85rem; margin:0; }
+.cart-done-view[hidden]{ display:none; }
+.cart-done-view h3{ font-size:1.05rem; text-transform:uppercase; margin-bottom:1rem; }
+.co-done{ display:flex; flex-direction:column; gap:0.8rem; font-size:0.92rem; margin-bottom:1.2rem; }
+.co-done .bank{ background:var(--plate-2); border:1px solid var(--line); border-radius:var(--r-sm); padding:0.8rem; font-family:"Azeret Mono", monospace; font-size:0.82rem; line-height:1.7; }
+.co-done .num{ font-family:"Azeret Mono", monospace; font-weight:700; color:var(--filament); }
+.legal-links{ display:flex; flex-wrap:wrap; gap:0.4rem 1.2rem; margin-top:0.6rem; }
+.legal-links a{ color:var(--ink-soft); text-decoration:none; }
+.legal-links a:hover{ color:var(--ink); text-decoration:underline; }
+.foot-note a{ color:inherit; }
 .cart-demo-note{
   font-family:"Azeret Mono", monospace; font-size:0.72rem; line-height:1.55;
   color:var(--data); background:var(--pla-soft);
@@ -1088,10 +1123,10 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
   <section class="section shop" id="shop">
     <div class="wrap">
       <div class="section-head reveal">
-        <h2>Bald bestellbar</h2>
+        <h2>Shop</h2>
         <div class="section-aside">
-          <p>So wird's aussehen, wenn ihr unsere Kreationen direkt hier bestellen könnt. Probiert den Warenkorb ruhig aus – es geht dabei noch nichts wirklich ab.</p>
-          <span class="status-chip">Vorschau · noch keine echten Bestellungen</span>
+          <p>Jedes Stück wird nach eurer Bestellung bei uns gedruckt – in euren Wunschfarben. Versand nach Österreich und Deutschland oder Abholung in Wien.</p>
+          <span class="status-chip">Alle Preise inkl. 20 % USt · zzgl. Versand</span>
         </div>
       </div>
 
@@ -1198,7 +1233,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
         </article>
 
       </div>
-      <p class="foot-note">Echte Bestellungen &amp; Versand kommen, sobald der Shop offiziell startet.</p>
+      <p class="foot-note">Alle Preise in Euro inkl. 20 % USt, zzgl. <a href="/versand.html">Versandkosten</a>. Gedruckt wird nach Bestellung – meist innerhalb von 1–2 Wochen.</p>
     </div>
   </section>
 
@@ -1274,8 +1309,20 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
   </div>
   <div class="wrap footer-legal">
     © 2026 Printer Brothers · Gedruckt, Schicht für Schicht.
+    <nav class="legal-links" aria-label="Rechtliches">
+      <a href="/impressum.html">Impressum</a><a href="/datenschutz.html">Datenschutz</a>
+      <a href="/agb.html">AGB &amp; Widerruf</a><a href="/versand.html">Versand &amp; Zahlung</a>
+    </nav>
   </div>
 </footer>
+
+<!-- Benachrichtigung über neue Bestellungen (Netlify Forms, mit Logo-Dateien) -->
+<form name="bestellung" data-netlify="true" netlify-honeypot="bot-field" enctype="multipart/form-data" hidden>
+  <input name="bestellnummer"><input name="name"><input name="email"><input name="gesamt">
+  <textarea name="bestellung"></textarea>
+  <input type="file" name="logo1"><input type="file" name="logo2"><input type="file" name="logo3"><input type="file" name="logo4">
+  <input name="bot-field">
+</form>
 
 <div class="cart-overlay" id="cartOverlay"></div>
 <aside class="cart-drawer" id="cartDrawer" aria-hidden="true" aria-label="Warenkorb">
@@ -1285,7 +1332,6 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
     </button>
   </div>
-  <p class="cart-demo-note">Vorschau-Warenkorb – hier wird noch nichts wirklich bestellt oder bezahlt.</p>
 
   <div class="cart-empty" id="cartEmpty">
     <p>Dein Warenkorb ist leer.</p>
@@ -1300,15 +1346,52 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
   </div>
 
   <div class="cart-checkout-view" id="cartCheckoutView" hidden>
-    <h3>Bestellübersicht</h3>
+    <h3>Kasse</h3>
     <div id="cartCheckoutList"></div>
-    <div class="cart-subtotal"><span>Gesamt</span><span id="cartCheckoutTotal">0,00 €</span></div>
-    <div class="cart-demo-banner">
-      <strong>Das ist eine Vorschau.</strong>
-      <p>Hier entsteht bald der echte Bestellvorgang. Es wurde gerade nichts bestellt oder bezahlt.</p>
-    </div>
-    <button class="btn btn-primary cart-checkout" type="button" id="cartLogoRequest" hidden>Logo-Anfrage an uns senden</button>
+    <form id="checkoutForm" class="checkout-form" novalidate>
+      <fieldset>
+        <legend>Lieferung</legend>
+        <div class="choice" id="coDelivery"></div>
+      </fieldset>
+      <fieldset>
+        <legend>Kontakt</legend>
+        <label class="co-field"><span>Vor- und Nachname</span><input name="name" autocomplete="name" required maxlength="80"></label>
+        <label class="co-field"><span>E-Mail</span><input name="email" type="email" autocomplete="email" required maxlength="120"></label>
+        <label class="co-field"><span>Telefon <em>– freiwillig, für Rückfragen</em></span><input name="phone" type="tel" autocomplete="tel" maxlength="40"></label>
+      </fieldset>
+      <fieldset id="coAddress">
+        <legend>Lieferadresse</legend>
+        <label class="co-field"><span>Straße und Hausnummer</span><input name="street" autocomplete="street-address" maxlength="100"></label>
+        <div class="co-row">
+          <label class="co-field co-zip"><span>PLZ</span><input name="zip" inputmode="numeric" autocomplete="postal-code" maxlength="5"></label>
+          <label class="co-field"><span>Ort</span><input name="city" autocomplete="address-level2" maxlength="60"></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Zahlung</legend>
+        <div class="choice" id="coPayment"></div>
+      </fieldset>
+      <label class="co-field"><span>Nachricht an uns <em>– freiwillig</em></span><textarea name="message" rows="2" maxlength="500"></textarea></label>
+      <p class="hp-field" aria-hidden="true"><label>Nicht ausfüllen <input name="website" tabindex="-1" autocomplete="off"></label></p>
+      <div class="co-sum">
+        <div><span>Zwischensumme</span><span id="coSubtotal"></span></div>
+        <div><span>Versand</span><span id="coShipping"></span></div>
+        <div class="co-total"><span>Gesamt</span><span id="coTotal"></span></div>
+        <div class="co-vat"><span id="coVat"></span></div>
+      </div>
+      <p class="co-personal" id="coPersonal" hidden>Hinweis: Personalisierte Stücke (mit Namen, Text oder eurem Logo) werden extra für euch angefertigt und sind vom Rücktrittsrecht ausgenommen.</p>
+      <label class="co-accept"><input type="checkbox" name="accept" required>
+        <span>Ich akzeptiere die <a href="/agb.html" target="_blank">AGB</a> und habe die <a href="/agb.html#widerruf" target="_blank">Widerrufsbelehrung</a> und die <a href="/datenschutz.html" target="_blank">Datenschutzerklärung</a> gelesen.</span></label>
+      <p class="co-error" id="coError" role="alert" hidden></p>
+      <button class="btn btn-primary cart-checkout" type="submit" id="coSubmit">Zahlungspflichtig bestellen</button>
+    </form>
     <button class="btn btn-ghost" type="button" id="cartBackToCart">Zurück zum Warenkorb</button>
+  </div>
+
+  <div class="cart-done-view" id="cartDoneView" hidden>
+    <h3>Danke für eure Bestellung!</h3>
+    <div id="coDone"></div>
+    <button class="btn btn-primary cart-checkout" type="button" id="coDoneClose">Fertig</button>
   </div>
 </aside>
 
@@ -1579,7 +1662,13 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
   var cartOverlay   = document.getElementById('cartOverlay');
   var checkoutView  = document.getElementById('cartCheckoutView');
   var cartCloseBtn  = document.getElementById('cartClose');
-  var logoReqBtn    = document.getElementById('cartLogoRequest');
+  var doneView      = document.getElementById('cartDoneView');
+  var coForm        = document.getElementById('checkoutForm');
+  var SETTINGS = null;   // Versand/Zahlung vom Server
+  if(window.fetch && location.protocol !== 'file:'){
+    fetch('/api/settings', { cache:'no-store' }).then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(st){ if(st && st.shipping) SETTINGS = st; }).catch(function(){});
+  }
 
   function colorPickerHTML(line, li){
     var p = PRODUCTS[line.id];
@@ -1732,14 +1821,159 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
         '</span><span>' + formatPrice(p.price * line.qty) + '</span>';
       listEl.appendChild(row);
     });
-    document.getElementById('cartCheckoutTotal').textContent = formatPrice(cartTotal());
-    var withLogo = lines.filter(function(l){ return l.logo; });
-    logoReqBtn.hidden = !withLogo.length;
+    renderChoices();
+    updateSums();
+    document.getElementById('coError').hidden = true;
+    document.getElementById('coPersonal').hidden = !lines.some(function(l){ return l.note || l.logo; });
     cartItemsEl.hidden = true;
     cartEmptyEl.hidden = true;
     cartFooterEl.hidden = true;
     checkoutView.hidden = false;
+    cartDrawer.scrollTop = 0;
   }
+
+  /* ---------- Kasse: Lieferung, Zahlung, Summen ---------- */
+  function val(n){ var el = coForm.elements[n]; return el ? (el.value || '').trim() : ''; }
+  function checked(n){ var el = coForm.querySelector('input[name="' + n + '"]:checked'); return el ? el.value : ''; }
+  function shipCost(d){
+    if(!SETTINGS || d === 'pickup' || !d) return 0;
+    var sub = cartTotal();
+    return SETTINGS.freeFrom > 0 && sub >= SETTINGS.freeFrom ? 0 : Number(SETTINGS.shipping[d]) || 0;
+  }
+  function radio(name, value, title, sub, price, on){
+    return '<label><input type="radio" name="' + name + '" value="' + value + '"' + (on ? ' checked' : '') + '>' +
+      '<span><b>' + esc(title) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span>' +
+      (price != null ? '<span class="price-tag">' + price + '</span>' : '') + '</label>';
+  }
+  function renderChoices(){
+    var st = SETTINGS;
+    var dEl = document.getElementById('coDelivery'), pEl = document.getElementById('coPayment');
+    if(!st){ dEl.innerHTML = '<p class="co-error">Versandoptionen konnten nicht geladen werden – bitte Seite neu laden.</p>'; pEl.innerHTML = ''; return; }
+    var d = checked('delivery') || 'AT';
+    var free = st.freeFrom > 0 && cartTotal() >= st.freeFrom;
+    dEl.innerHTML =
+      radio('delivery', 'AT', 'Versand nach Österreich', 'mit der Post, nach Fertigstellung', free ? 'gratis' : formatPrice(st.shipping.AT), d === 'AT') +
+      radio('delivery', 'DE', 'Versand nach Deutschland', 'mit der Post, nach Fertigstellung', free ? 'gratis' : formatPrice(st.shipping.DE), d === 'DE') +
+      (st.pickup.enabled ? radio('delivery', 'pickup', 'Abholung', st.pickup.text, formatPrice(0), d === 'pickup') : '');
+    renderPayments();
+  }
+  function renderPayments(){
+    var st = SETTINGS, pEl = document.getElementById('coPayment');
+    if(!st) return;
+    var d = checked('delivery'), pay = checked('payment');
+    var opts = [];
+    if(st.payments.transfer) opts.push(['transfer', 'Überweisung (Vorkasse)', 'Bankdaten bekommt ihr nach der Bestellung – wir drucken, sobald das Geld da ist.']);
+    if(st.payments.paypal) opts.push(['paypal', 'PayPal', 'Nach der Bestellung direkt über PayPal bezahlen.']);
+    if(st.payments.cash && d === 'pickup') opts.push(['cash', 'Bar bei Abholung', '']);
+    if(!opts.some(function(o){ return o[0] === pay; })) pay = opts.length ? opts[0][0] : '';
+    pEl.innerHTML = opts.map(function(o){ return radio('payment', o[0], o[1], o[2], null, o[0] === pay); }).join('');
+    document.getElementById('coAddress').hidden = d === 'pickup';
+    var zip = coForm.elements.zip;
+    zip.maxLength = d === 'DE' ? 5 : 4; zip.placeholder = d === 'DE' ? '12345' : '1160';
+  }
+  function updateSums(){
+    var sub = cartTotal(), ship = shipCost(checked('delivery')), tot = sub + ship;
+    var rate = SETTINGS ? SETTINGS.vatRate : 20;
+    document.getElementById('coSubtotal').textContent = formatPrice(sub);
+    document.getElementById('coShipping').textContent = checked('delivery') === 'pickup' ? 'Abholung' : formatPrice(ship);
+    document.getElementById('coTotal').textContent = formatPrice(tot);
+    document.getElementById('coVat').textContent = 'inkl. ' + rate + ' % USt ' + formatPrice(tot - tot / (1 + rate / 100));
+  }
+  coForm.addEventListener('change', function(e){
+    if(e.target.name === 'delivery'){ renderPayments(); updateSums(); }
+  });
+
+  function orderPayload(){
+    return {
+      items: lines.map(function(l){
+        var p = PRODUCTS[l.id];
+        return { id:l.id, qty:l.qty,
+          colors: l.colors.map(function(fid){ var f = filById(fid); return f ? f.name : ''; }),
+          opts: optsOf(p).map(function(o, i){ return o.values[(l.opts || [])[i] || 0]; }),
+          note: l.note || '', logo: l.logo ? l.logo.name : '' };
+      }),
+      customer: { name:val('name'), email:val('email'), phone:val('phone'), street:val('street'), zip:val('zip'), city:val('city') },
+      delivery: checked('delivery'), payment: checked('payment'), message: val('message'),
+      accept: coForm.elements.accept.checked, website: val('website')
+    };
+  }
+  function summaryText(o){
+    var L = o.items.map(function(i){
+      var ex = [];
+      if(i.colors.some(Boolean)) ex.push(i.colors.map(function(c, k){ return (i.parts.length > 1 && i.parts[k] ? i.parts[k] + ': ' : '') + c; }).join(', '));
+      i.opts.forEach(function(x){ ex.push(x.name + ': ' + x.value); });
+      if(i.note) ex.push(i.noteLabel + ': „' + i.note + '“');
+      if(i.logo) ex.push('Eigenes Logo: ' + i.logo);
+      return '• ' + i.qty + '× ' + i.name + ' à ' + formatPrice(i.price) + (ex.length ? ' (' + ex.join(' · ') + ')' : '');
+    });
+    var c = o.customer;
+    var DEL = { AT:'Versand Österreich', DE:'Versand Deutschland', pickup:'Abholung' };
+    var PAY = { transfer:'Überweisung', paypal:'PayPal', cash:'Bar bei Abholung' };
+    return L.join('\n') + '\n\nZwischensumme ' + formatPrice(o.subtotal) + ' · Versand ' + formatPrice(o.shipping) +
+      ' · Gesamt ' + formatPrice(o.total) + ' (inkl. ' + o.vatRate + ' % USt ' + formatPrice(o.vat) + ')' +
+      '\nLieferung: ' + DEL[o.delivery] + ' · Zahlung: ' + PAY[o.payment] +
+      '\n\n' + c.name + '\n' + c.email + (c.phone ? '\n' + c.phone : '') +
+      (o.delivery !== 'pickup' ? '\n' + c.street + '\n' + c.zip + ' ' + c.city + '\n' + c.country : '') +
+      (o.message ? '\n\nNachricht: ' + o.message : '');
+  }
+  /* Benachrichtigung an uns per Netlify-Formular (inkl. Logos); die Bestellung selbst ist da schon gespeichert */
+  function notify(o){
+    var fd = new FormData();
+    fd.append('form-name', 'bestellung');
+    fd.append('bestellnummer', o.number); fd.append('name', o.customer.name); fd.append('email', o.customer.email);
+    fd.append('gesamt', formatPrice(o.total)); fd.append('bestellung', summaryText(o));
+    lines.filter(function(l){ return l.logo; }).slice(0, 4).forEach(function(l, i){ fd.append('logo' + (i + 1), l.logo, l.logo.name); });
+    return fetch('/', { method:'POST', body:fd }).catch(function(){});
+  }
+  function showDone(res){
+    var o = res.order, pay = res.pay, html = '<p>Bestellnummer <span class="num">' + esc(o.number) + '</span> · Gesamt <b>' + formatPrice(o.total) + '</b></p>';
+    if(pay.kind === 'transfer'){
+      var b = pay.bank || {};
+      html += '<p>Bitte überweist den Betrag mit der Bestellnummer als Verwendungszweck:</p><div class="bank">' +
+        (b.holder ? 'Empfänger: ' + esc(b.holder) + '<br>' : '') + (b.iban ? 'IBAN: ' + esc(b.iban.replace(/(.{4})/g, '$1 ').trim()) + '<br>' : '') +
+        (b.bic ? 'BIC: ' + esc(b.bic) + '<br>' : '') + 'Betrag: ' + formatPrice(o.total) + '<br>Verwendungszweck: ' + esc(o.number) + '</div>' +
+        (b.iban ? '' : '<p>Die Bankdaten schicken wir euch per E-Mail.</p>');
+    } else if(pay.kind === 'paypal'){
+      html += '<p><a class="btn btn-primary" href="' + esc(pay.url) + '" target="_blank" rel="noopener">Jetzt mit PayPal bezahlen (' + formatPrice(o.total) + ')</a></p>' +
+        '<p>Bitte gebt bei PayPal die Bestellnummer <b>' + esc(o.number) + '</b> als Nachricht an.</p>';
+    } else {
+      html += '<p>Ihr zahlt bar bei der Abholung. ' + esc(pay.pickup || '') + ' – wir melden uns, sobald alles fertig ist.</p>';
+    }
+    html += '<p>Wir melden uns per E-Mail an ' + esc(o.customer.email) + ', sobald wir eure Bestellung bearbeiten. Tipp: Macht euch einen Screenshot dieser Seite.</p>';
+    document.getElementById('coDone').className = 'co-done';
+    document.getElementById('coDone').innerHTML = html;
+    checkoutView.hidden = true;
+    doneView.hidden = false;
+    cartDrawer.scrollTop = 0;
+  }
+  coForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    var err = document.getElementById('coError'), btn = document.getElementById('coSubmit');
+    err.hidden = true;
+    var need = ['name', 'email'].concat(checked('delivery') === 'pickup' ? [] : ['street', 'zip', 'city']);
+    var miss = need.filter(function(n){ var bad = !val(n); coForm.elements[n].classList.toggle('bad', bad); return bad; });
+    var msg = !SETTINGS ? 'Versandoptionen fehlen – bitte Seite neu laden.' :
+      miss.length ? 'Bitte alle Pflichtfelder ausfüllen.' :
+      !checked('payment') ? 'Bitte eine Zahlungsart wählen.' :
+      lines.some(function(l){ return PRODUCTS[l.id].note && !(l.note || '').trim(); }) ? 'Bei einem Stück fehlt noch der Text – bitte im Warenkorb eintragen.' :
+      !coForm.elements.accept.checked ? 'Bitte die AGB akzeptieren.' : '';
+    if(msg){ err.textContent = msg; err.hidden = false; return; }
+    btn.disabled = true; btn.textContent = 'Wird gesendet …';
+    fetch('/api/bestellung', { method:'POST', headers:{ 'content-type':'application/json' }, body: JSON.stringify(orderPayload()) })
+      .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(b){ if(!r.ok || !b.ok) throw new Error(b.error || 'Fehler ' + r.status); return b; }); })
+      .then(function(res){
+        return notify(res.order).then(function(){
+          showDone(res);
+          lines = []; coForm.reset(); renderCart();
+          cartEmptyEl.hidden = true; cartFooterEl.hidden = true; cartItemsEl.hidden = true;
+        });
+      })
+      .catch(function(ex){ err.textContent = ex.message || 'Das hat leider nicht geklappt – bitte nochmal versuchen.'; err.hidden = false; })
+      .then(function(){ btn.disabled = false; btn.textContent = 'Zahlungspflichtig bestellen'; });
+  });
+  document.getElementById('coDoneClose').addEventListener('click', function(){
+    doneView.hidden = true; cartItemsEl.hidden = false; renderCart(); closeCart();
+  });
   function hideCheckout(){
     checkoutView.hidden = true;
     cartItemsEl.hidden = false;
@@ -1814,18 +2048,6 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
   document.getElementById('cartShopLink').addEventListener('click', closeCart);
   document.getElementById('cartCheckout').addEventListener('click', showCheckout);
   document.getElementById('cartBackToCart').addEventListener('click', hideCheckout);
-  /* Logo-Anfrage: Produkte + Logos ins Anfrage-Formular übernehmen (das kommt wirklich bei uns an) */
-  logoReqBtn.addEventListener('click', function(){
-    var withLogo = lines.filter(function(l){ return l.logo; });
-    var text = 'Firmenanfrage – bitte mit unserem eigenen Logo statt des Printer-Brothers-Logos:\n' +
-      lines.map(function(l){
-        var p = PRODUCTS[l.id], extra = [colorSummary(l), optsOf(p).length ? optionSummary(l) : '', l.note ? p.noteLabel + ': ' + l.note : '',
-          l.logo ? 'Eigenes Logo: ' + l.logo.name : ''].filter(Boolean).join(' · ');
-        return '• ' + l.qty + '× ' + p.name + (extra ? ' (' + extra + ')' : '');
-      }).join('\n') + '\n';
-    closeCart();
-    if(window.pbAnfrage) window.pbAnfrage(text, withLogo.map(function(l){ return l.logo; }));
-  });
   document.addEventListener('keydown', function(e){
     if(e.key === 'Escape' && cartDrawer.classList.contains('open')) closeCart();
   });
@@ -1950,7 +2172,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
 </script>
 
 <script type="module">
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import * as THREE from "/vendor/three-0.160.0.module.js";
 
 /* ------------------------------------------------------------
    Gemeinsame Helfer für beide 3D-Szenen

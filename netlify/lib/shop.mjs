@@ -134,3 +134,127 @@ export async function cleanupImages(list) {
     if (Number.isFinite(ts) && ts < cutoff) await store.delete(b.key);
   }));
 }
+
+/* ---------- Shop-Einstellungen (Versand, Zahlung) ---------- */
+const SETTINGS_KEY = "settings.json";
+export const SETTINGS_DEFAULT = {
+  shipping: { AT: 5.9, DE: 12.9 },  // Versandpauschale je Land (inkl. USt)
+  freeFrom: 0,                       // ab diesem Warenwert versandkostenfrei (0 = nie)
+  pickup: { enabled: true, text: "Abholung in 1160 Wien nach Vereinbarung" },
+  payments: { transfer: true, paypal: true, cash: true },
+  bank: { holder: "Matthias Habringer", iban: "", bic: "", name: "" },
+  paypalMe: "",                      // z. B. "printerbrothers" -> https://paypal.me/printerbrothers
+  vatRate: 20,
+  open: true,                        // Bestellungen annehmen
+};
+
+const num = (v, d, max = 1000) => { const n = Math.round(Number(v) * 100) / 100; return Number.isFinite(n) && n >= 0 && n <= max ? n : d; };
+
+export function sanitizeSettings(s) {
+  const D = SETTINGS_DEFAULT;
+  const iban = str(s?.bank?.iban, 40).toUpperCase().replace(/\s+/g, "");
+  if (iban && !/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(iban)) throw new Error("IBAN sieht ungültig aus.");
+  const paypalMe = str(s?.paypalMe, 40).replace(/^https?:\/\/(www\.)?paypal\.me\//i, "").replace(/[^A-Za-z0-9._-]/g, "");
+  return {
+    shipping: { AT: num(s?.shipping?.AT, D.shipping.AT, 200), DE: num(s?.shipping?.DE, D.shipping.DE, 200) },
+    freeFrom: num(s?.freeFrom, 0, 10000),
+    pickup: { enabled: s?.pickup?.enabled !== false, text: str(s?.pickup?.text, 120) || D.pickup.text },
+    payments: { transfer: s?.payments?.transfer !== false, paypal: s?.payments?.paypal !== false, cash: s?.payments?.cash !== false },
+    bank: { holder: str(s?.bank?.holder, 70), iban, bic: str(s?.bank?.bic, 11).toUpperCase().replace(/\s+/g, ""), name: str(s?.bank?.name, 60) },
+    paypalMe,
+    vatRate: D.vatRate,
+    open: s?.open !== false,
+  };
+}
+
+export async function loadSettings() {
+  const data = await shopStore().get(SETTINGS_KEY, { type: "json" });
+  return sanitizeSettings({ ...SETTINGS_DEFAULT, ...(data || {}) });
+}
+
+export async function saveSettings(s) {
+  await shopStore().setJSON(SETTINGS_KEY, s);
+}
+
+/* Was Kund:innen sehen dürfen (ohne Bankdaten) */
+export function publicSettings(s) {
+  return {
+    shipping: s.shipping, freeFrom: s.freeFrom, pickup: s.pickup, vatRate: s.vatRate, open: s.open,
+    payments: { transfer: s.payments.transfer, paypal: s.payments.paypal && !!s.paypalMe, cash: s.payments.cash && s.pickup.enabled },
+  };
+}
+
+/* ---------- Bestellungen ---------- */
+export const orderStore = () => getStore({ name: "orders", consistency: "strong" });
+export const ORDER_STATUS = ["neu", "bezahlt", "in Arbeit", "versendet", "abgeholt", "storniert"];
+const EMAIL = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i;
+
+export function newOrderNumber() {
+  const d = new Date();
+  const ymd = String(d.getUTCFullYear()).slice(2) + String(d.getUTCMonth() + 1).padStart(2, "0") + String(d.getUTCDate()).padStart(2, "0");
+  const rnd = Array.from({ length: 4 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join("");
+  return `PB-${ymd}-${rnd}`;
+}
+
+/* Bestellung prüfen und Preise am Server neu rechnen (der Browser bestimmt keine Preise) */
+export function buildOrder(input, products, settings) {
+  if (!settings.open) throw new Error("Der Shop nimmt gerade keine Bestellungen an.");
+  const byId = new Map(products.filter((p) => p.visible !== false).map((p) => [p.id, p]));
+  const rawItems = Array.isArray(input?.items) ? input.items : [];
+  if (!rawItems.length) throw new Error("Der Warenkorb ist leer.");
+  if (rawItems.length > 30) throw new Error("Zu viele Positionen.");
+  const items = rawItems.map((it) => {
+    const p = byId.get(String(it?.id || ""));
+    if (!p) throw new Error("Ein Produkt im Warenkorb gibt es nicht mehr – bitte Seite neu laden.");
+    const qty = Math.floor(Number(it?.qty));
+    if (!(qty >= 1 && qty <= 99)) throw new Error(`„${p.name}“: Menge ungültig.`);
+    const colors = (Array.isArray(it?.colors) ? it.colors : []).slice(0, MAX_COLORS).map((c) => str(c, 30));
+    const opts = (p.options || []).map((o, i) => {
+      const v = str(it?.opts?.[i], 30);
+      if (!o.values.includes(v)) throw new Error(`„${p.name}“: ${o.name} ungültig.`);
+      return { name: o.name, value: v };
+    });
+    const note = p.note ? str(it?.note, 60) : "";
+    if (p.note && !note) throw new Error(`„${p.name}“: ${p.noteLabel} fehlt noch.`);
+    const logo = p.logo ? str(it?.logo, 100) : "";
+    return { id: p.id, name: p.name, price: p.price, qty, parts: p.parts, colors, opts, note, noteLabel: p.note ? p.noteLabel : "", logo };
+  });
+  const c = input?.customer || {};
+  const delivery = ["AT", "DE", "pickup"].includes(input?.delivery) ? input.delivery : "";
+  if (!delivery) throw new Error("Bitte eine Lieferart wählen.");
+  if (delivery === "pickup" && !settings.pickup.enabled) throw new Error("Abholung ist gerade nicht möglich.");
+  const customer = {
+    name: str(c.name, 80), email: str(c.email, 120), phone: str(c.phone, 40),
+    street: str(c.street, 100), zip: str(c.zip, 10), city: str(c.city, 60),
+    country: delivery === "DE" ? "Deutschland" : "Österreich",
+  };
+  if (customer.name.length < 3) throw new Error("Bitte Vor- und Nachnamen angeben.");
+  if (!EMAIL.test(customer.email)) throw new Error("Bitte eine gültige E-Mail-Adresse angeben.");
+  if (delivery !== "pickup") {
+    if (!customer.street || !customer.city) throw new Error("Bitte die Lieferadresse vollständig angeben.");
+    if (!(delivery === "AT" ? /^\d{4}$/ : /^\d{5}$/).test(customer.zip)) throw new Error("Bitte eine gültige Postleitzahl angeben.");
+  }
+  const pub = publicSettings(settings);
+  const payment = String(input?.payment || "");
+  if (!(pub.payments[payment])) throw new Error("Bitte eine Zahlungsart wählen.");
+  if (payment === "cash" && delivery !== "pickup") throw new Error("Barzahlung geht nur bei Abholung.");
+  if (input?.accept !== true) throw new Error("Bitte die AGB akzeptieren.");
+  const round = (n) => Math.round(n * 100) / 100;
+  const subtotal = round(items.reduce((s, i) => s + i.price * i.qty, 0));
+  const shipping = delivery === "pickup" || (settings.freeFrom > 0 && subtotal >= settings.freeFrom) ? 0 : settings.shipping[delivery];
+  const total = round(subtotal + shipping);
+  const vat = round(total - total / (1 + settings.vatRate / 100));
+  return {
+    number: newOrderNumber(), createdAt: new Date().toISOString(), status: "neu",
+    items, customer, delivery, payment, message: str(input?.message, 500),
+    subtotal, shipping, total, vat, vatRate: settings.vatRate,
+  };
+}
+
+/* Zahlungsinfos für die Bestätigung */
+export function paymentInfo(order, settings) {
+  const amount = order.total.toFixed(2);
+  if (order.payment === "transfer") return { kind: "transfer", bank: settings.bank, reference: order.number, amount };
+  if (order.payment === "paypal") return { kind: "paypal", url: `https://paypal.me/${encodeURIComponent(settings.paypalMe)}/${amount}EUR`, amount };
+  return { kind: "cash", amount, pickup: settings.pickup.text };
+}

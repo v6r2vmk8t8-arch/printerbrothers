@@ -25,6 +25,29 @@ Die ersten Zeilen liegen schon auf `main` (Deploy pausiert), die letzten zwei nu
 3D-Dateien und Bauanleitung sind bereits im Admin unter „3D-Dateien“ (Blobs, kein Deploy nötig). Renn-Flitzer-Bilder hat der Nutzer bereits selbst im Admin eingetragen – nichts mehr zu tun
 (die Dateien `public/images/renn-flitzer-*.jpg` auf dem Branch gehen beim Merge einfach mit, schaden nicht).
 
+## Shop geht live (echte Bestellungen) – kommt mit demselben Deploy
+| Änderung | Wo prüfen |
+|---|---|
+| Helles Design, folgt System (hell/dunkel), Umschalter im Menü | Startseite, Rechtsseiten |
+| Kasse: Lieferung AT/DE/Abholung, Zahlung Überweisung/PayPal.me/Bar, Summen inkl. 20 % USt, „Zahlungspflichtig bestellen“ | Warenkorb → Zur Kasse |
+| Server: `/api/bestellung` (Preise am Server nachgerechnet, Speicher „orders“), `/api/settings` | Testbestellung |
+| Benachrichtigung je Bestellung über Netlify-Formular „bestellung“ (mit Logo-Dateien) | Netlify → Forms |
+| Admin: Reiter „Bestellungen“ (Status, Notiz) und „Einstellungen“ (Versand, Abholung, Bank, PayPal.me) | `/admin` |
+| Rechtsseiten: Impressum, Datenschutz, AGB + Widerrufsbelehrung + Muster-Formular, Versand & Zahlung | Fußzeile |
+| Schriften + three.js lokal (keine Verbindung zu Google/jsDelivr) | Netzwerk-Tab: nur eigene Domain |
+| Vorschau-Hinweise im Shop entfernt | Shop-Bereich |
+
+### VOR dem Deploy vom Nutzer nötig
+1. **GISA-Zahl + Gewerbewortlaut** fürs Impressum (`public/impressum.html`, gelb markiert) – sonst nicht live schalten.
+2. Gewerbebehörde/Kammer im Impressum bestätigen (eingetragen: MBA 16, WKO Wien).
+3. Rechtstexte (AGB, Widerruf, Datenschutz) kurz gegenlesen – Vorlage, keine Rechtsberatung.
+
+### NACH dem Deploy
+1. Admin → Einstellungen: **IBAN/BIC**, **PayPal.me-Name**, Versandpreise prüfen (Standard AT 5,90 / DE 12,90).
+2. Netlify → Forms → Formular „bestellung“: **E-Mail-Benachrichtigung** an die Shop-Adresse einschalten (sonst merkt man neue Bestellungen nur im Admin).
+3. Testbestellung (Abholung + Bar) machen, im Admin auf „storniert“ setzen.
+4. Kund:innen bekommen (noch) keine automatische Bestätigungs-Mail – im Admin auf die E-Mail-Adresse klicken und manuell bestätigen. Optional später: Mail-Dienst (z. B. Resend) anbinden.
+
 ## Ablauf am 23.11.
 1. In Netlify prüfen bzw. den Nutzer fragen, ob Credits wieder da sind (Banner „operational credits“ weg).
 2. Branch nach `main` bringen (Fast-Forward) – **ein** Push = **ein** Deploy.

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Versand & Zahlung · Printer Brothers</title>
+<link rel="icon" href="/brand/pb-favicon.svg" type="image/svg+xml">
+<script>(function(){var p;try{p=localStorage.getItem('pb-theme')||'auto'}catch(e){p='auto'}var t=p==='auto'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):p;document.documentElement.setAttribute('data-theme',t);})();</script>
+<link href="/fonts/fonts.css" rel="stylesheet">
+<link href="/rechtliches.css" rel="stylesheet">
+</head>
+<body>
+<header><div class="wrap">
+  <a href="/"><img class="on-dark" src="/brand/pb-logo-horizontal-dark-bg.svg" alt="Printer Brothers" width="739" height="200"><img class="on-light" src="/brand/pb-logo-horizontal-light-bg.svg" alt="Printer Brothers" width="739" height="200"></a>
+  <a class="back" href="/#shop">← Zum Shop</a>
+</div></header>
+<main class="wrap">
+<h1>Versand &amp; Zahlung</h1>
+<p>Jedes Stück wird nach eurer Bestellung bei uns gedruckt. Die Fertigung dauert meist 1–2 Wochen ab Zahlungseingang, die Post braucht danach 2–5 Werktage.</p>
+<h2>Versandkosten</h2>
+<table id="shipTable">
+  <tr><th>Lieferung</th><th>Kosten</th></tr>
+  <tr><td>Österreich</td><td id="vAT">–</td></tr>
+  <tr><td>Deutschland</td><td id="vDE">–</td></tr>
+  <tr id="vPickupRow"><td id="vPickupText">Abholung in Wien</td><td>kostenlos</td></tr>
+</table>
+<p class="muted" id="vFree"></p>
+<p class="muted">Alle Preise in Euro inkl. 20 % USt. Andere Länder auf Anfrage.</p>
+<h2>Zahlungsarten</h2>
+<ul>
+  <li><b>Überweisung (Vorkasse):</b> Nach der Bestellung seht ihr unsere Bankverbindung. Bitte gebt die Bestellnummer als Verwendungszweck an – wir drucken, sobald das Geld da ist.</li>
+  <li><b>PayPal:</b> Nach der Bestellung führt euch ein Link mit dem richtigen Betrag zu PayPal.</li>
+  <li><b>Bar bei Abholung:</b> nur wenn ihr Abholung wählt.</li>
+</ul>
+<p>Fragen? <a href="mailto:office@beimir.at">office@beimir.at</a></p>
+<script>
+fetch('/api/settings').then(function(r){ return r.json(); }).then(function(s){
+  var f = function(n){ return n.toLocaleString('de-AT', { style:'currency', currency:'EUR' }); };
+  document.getElementById('vAT').textContent = f(s.shipping.AT);
+  document.getElementById('vDE').textContent = f(s.shipping.DE);
+  if(s.pickup && s.pickup.enabled) document.getElementById('vPickupText').textContent = s.pickup.text; else document.getElementById('vPickupRow').hidden = true;
+  if(s.freeFrom > 0) document.getElementById('vFree').textContent = 'Ab ' + f(s.freeFrom) + ' Warenwert versenden wir kostenlos.';
+}).catch(function(){});
+</script>
+</main>
+<footer><div class="wrap">
+  <nav aria-label="Rechtliches"><a href="/impressum.html">Impressum</a><a href="/datenschutz.html">Datenschutz</a><a href="/agb.html">AGB &amp; Widerruf</a><a href="/versand.html">Versand &amp; Zahlung</a></nav>
+  <p>© 2026 Printer Brothers · Matthias Habringer, 1160 Wien</p>
+</div></footer>
+</body>
+</html>
