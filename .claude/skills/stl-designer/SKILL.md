@@ -33,8 +33,13 @@ Helix-Mesh, Spielprüfung mit `a.min_gap(b, 2.0)` und Kollision mit `(a ^ b).vol
 3. **Ausführen** → `export_parts(...)` mit Basispfad `3d-druck/<name>_<größe>` (z. B. `3d-druck/pb-anhaenger_45mm`).
 4. **Vorschau-PNG ansehen** (Read-Tool) und kritisch prüfen: Stimmt die Form? Sind Details sichtbar? Liegt das Teil flach?
 5. **Check-Ausgabe beachten**: Jede Warnung (nicht wasserdicht, zu groß …) beheben, bevor geliefert wird.
-6. **Im Admin bereitstellen**: `python3 3d-druck/src/dateien_abgleich.py` spiegelt `3d-druck/` in den
-   Admin-Reiter „3D-Dateien → Von Claude“ (nur neue/geänderte Dateien; braucht den API-Schlüssel der Umgebung).
+6. **Im Admin bereitstellen**: `python3 3d-druck/src/dateien_abgleich.py` lädt neue/geänderte Dateien aus
+   `3d-druck/` in den Admin-Reiter „3D-Dateien → Von Claude“ (braucht den API-Schlüssel der Umgebung).
+   Vorher mit `--trocken` prüfen. **Standardmäßig wird nichts gelöscht**, weil andere Sitzungen auf anderen
+   Branches dort Dateien ablegen, die im eigenen Checkout fehlen. Wer Dateien bewusst aus dem Repo entfernt hat
+   und sie auch im Admin loswerden will, ruft das Skript mit `--loeschen` auf. Gelöscht wird dann nur, was lokal
+   fehlt, laut `git log --diff-filter=D` im aktuellen Branch gelöscht wurde und in keinem bekannten Branch
+   (lokal/`origin/*`) mehr existiert. Alles andere wird nur als „behalten“ aufgelistet.
 7. **Liefern**: Maße, geschätztes Gewicht, empfohlene Druckausrichtung und Slicer-Tipps (Support ja/nein, Wände, Infill) kurz nennen. Committen und pushen, damit der Nutzer die Dateien herunterladen kann.
 
 ## Dateikonvention (bestehend im Repo)
