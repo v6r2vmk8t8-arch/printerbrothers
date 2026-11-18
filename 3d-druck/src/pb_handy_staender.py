@@ -37,6 +37,7 @@ PIVOT_R = T / 2                              # Drehzapfen der Lehne (liegt auf d
 PIVOT_L = 6.0                                # Zapfenlänge je Seite
 LEDGE_D, LEDGE_T, LIP = 13.0, 4.5, 3.5       # Ablage: Tiefe (Gerätedicke), Wandstärke, Rand
 CABLE = 16.0       # Kabelschlitz in der Ablage
+THUMB_R = 9.0      # Griffmulde über der Stütze (zum Herausklappen)
 
 BT = 4.0           # Fußplatte
 BW = W + 2 * (0.6 + 6.4)                     # Fußbreite (Lehne + Spiel + Lagerbock)
@@ -85,7 +86,7 @@ def backrest():
     yh = LH
     cut = box(-SW / 2 - GAP, SW / 2 + GAP, yh - SWING, yh + LS + GAP, -1, T + 1)   # unter dem Scharnier frei zum Schwenken
     cut = cut + cyl_x(T / 2 + GAP, -SW / 2 - GAP, SW / 2 + GAP, yh, zc)
-    cut = cut + Manifold.cylinder(T + 2, 9.0, 9.0, 64).translate((0, yh + LS + GAP, -1))
+    cut = cut + Manifold.cylinder(T + 2, THUMB_R, THUMB_R, 64).translate((0, yh + LS + GAP, -1))
     plate = plate - cut
     # Ablage vorne (zeigt im Druck nach oben)
     z0, z1 = T - 0.01, T + LEDGE_D
