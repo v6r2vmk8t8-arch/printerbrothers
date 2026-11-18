@@ -1,10 +1,19 @@
 {
   "nummer": "2026-001",
   "datum": "2026-11-18",
-  "kunde": ["Name des Kunden", "Straße Hausnummer", "PLZ Ort"],
+  "kunde": [
+    "Dani"
+  ],
   "positionen": [
-    { "produkt": "kaffeeklipp", "menge": 1 },
-    { "produkt": "stand", "menge": 1 }
+    {
+      "produkt": "kaffeeklipp",
+      "menge": 1,
+      "bild": "rechnungen/bilder/kaffeeklipp.jpg"
+    },
+    {
+      "produkt": "stand",
+      "menge": 1
+    }
   ],
   "zahlung": "Bitte den Betrag innerhalb von 14 Tagen überweisen oder bar bezahlen."
 }
