@@ -40,6 +40,9 @@ Helix-Mesh, Spielprüfung mit `a.min_gap(b, 2.0)` und Kollision mit `(a ^ b).vol
    und sie auch im Admin loswerden will, ruft das Skript mit `--loeschen` auf. Gelöscht wird dann nur, was lokal
    fehlt, laut `git log --diff-filter=D` im aktuellen Branch gelöscht wurde und in keinem bekannten Branch
    (lokal/`origin/*`) mehr existiert. Alles andere wird nur als „behalten“ aufgelistet.
+   Ebenso wird eine vorhandene Admin-Datei nur überschrieben, wenn deren Inhalt einer früheren Version aus der
+   Git-Historie des eigenen Branches entspricht. Unbekannte Admin-Versionen (vermutlich aus einer anderen Sitzung)
+   werden als „nicht überschrieben“ gemeldet; nur nach Rücksprache mit `--ueberschreiben` erzwingen.
 7. **Liefern**: Maße, geschätztes Gewicht, empfohlene Druckausrichtung und Slicer-Tipps (Support ja/nein, Wände, Infill) kurz nennen. Committen und pushen, damit der Nutzer die Dateien herunterladen kann.
 
 ## Dateikonvention (bestehend im Repo)

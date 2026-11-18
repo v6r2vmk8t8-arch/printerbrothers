@@ -12,7 +12,13 @@ Dateien, die
   3. in keinem bekannten Branch (lokal oder origin/*) aktuell existieren.
 Admin-Dateien, die nur fehlen, aber nie gelöscht wurden, werden bloß aufgelistet.
 
-Aufruf:  python3 3d-druck/src/dateien_abgleich.py [--trocken] [--loeschen]
+Aus demselben Grund wird eine vorhandene Admin-Datei nur überschrieben, wenn ihr
+Inhalt einer früheren Version aus der Git-Historie des aktuellen Branches
+entspricht (dann ist die lokale Datei nachweislich neuer). Ist die Admin-Version
+hier unbekannt – vermutlich aus einer anderen Sitzung –, wird die Datei
+übersprungen und gemeldet. Mit --ueberschreiben wird trotzdem hochgeladen.
+
+Aufruf:  python3 3d-druck/src/dateien_abgleich.py [--trocken] [--loeschen] [--ueberschreiben]
 
 Benötigt Zugriff auf die Admin-API (in der Cloud-Umgebung wird der API-Schlüssel
 automatisch mitgeschickt; lokal: Umgebungsvariable PB_API_TOKEN setzen).
@@ -31,6 +37,7 @@ EXT = {".stl", ".3mf", ".step", ".stp", ".obj", ".zip", ".gcode", ".scad", ".f3d
 CHUNK = 4 * 1024 * 1024
 DRY = "--trocken" in sys.argv
 LOESCHEN = "--loeschen" in sys.argv
+UEBERSCHREIBEN = "--ueberschreiben" in sys.argv
 
 
 def curl(args, data=None):
@@ -85,15 +92,35 @@ def in_branches_vorhanden():
     return vorhanden
 
 
+def fruehere_md5(rel):
+    """MD5-Summen aller Versionen von 3d-druck/<rel> in der Historie von HEAD."""
+    pfad = repo_prefix() + rel
+    blobs = set()
+    for h in git("log", "--format=%H", "HEAD", "--", ":(top)" + pfad).split():
+        r = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--verify", "-q", f"{h}:{pfad}"],
+                           capture_output=True, text=True)
+        if r.returncode == 0:
+            blobs.add(r.stdout.strip())
+    out = set()
+    for b in blobs:
+        data = subprocess.run(["git", "-C", str(ROOT), "cat-file", "blob", b], capture_output=True).stdout
+        out.add(hashlib.md5(data).hexdigest())
+    return out
+
+
 def main():
     remote = {m["pfad"]: m for m in json.loads(curl([BASE + "liste"]))["claude"]}
     local = lokale_dateien()
     neu = gleich = 0
+    konflikt = []
     for rel, p in local.items():
         data = p.read_bytes()
         md5 = hashlib.md5(data).hexdigest()
         if rel in remote and remote[rel].get("md5") == md5 and remote[rel].get("size") == len(data):
             gleich += 1
+            continue
+        if rel in remote and not UEBERSCHREIBEN and remote[rel].get("md5") not in fruehere_md5(rel):
+            konflikt.append(rel)
             continue
         n = max(1, -(-len(data) // CHUNK))
         print(f"↑ {rel} ({len(data) / 1e6:.1f} MB, {n} Teil{'e' if n > 1 else ''})")
@@ -105,6 +132,11 @@ def main():
                                          "groesse": len(data), "md5": md5})
             curl(["-X", "POST", "-H", "content-type: application/octet-stream", "--data-binary", "@-",
                   BASE + "hochladen?" + qs], data=data[i * CHUNK:(i + 1) * CHUNK])
+    if konflikt:
+        print(f"! {len(konflikt)} Datei(en) NICHT überschrieben – die Admin-Version ist in diesem Branch "
+              f"unbekannt (vermutlich aus einer anderen Sitzung; erzwingen mit --ueberschreiben):")
+        for rel in konflikt:
+            print(f"    {rel}")
     fehlend = [m for pfad, m in remote.items() if pfad not in local]
     weg = []
     if LOESCHEN and fehlend:
@@ -125,7 +157,7 @@ def main():
         if not DRY:
             curl(["-X", "DELETE", BASE + "datei?" + urllib.parse.urlencode({"quelle": "claude", "id": m["id"]})])
     print(f"Fertig: {neu} hochgeladen, {gleich} unverändert, {len(weg)} entfernt, "
-          f"{len(behalten)} behalten{' (Probelauf)' if DRY else ''}.")
+          f"{len(behalten)} behalten, {len(konflikt)} nicht überschrieben{' (Probelauf)' if DRY else ''}.")
 
 
 if __name__ == "__main__":
