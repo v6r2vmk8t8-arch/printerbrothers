@@ -291,7 +291,7 @@ def main():
     shown = {}
     for v in only or VARIANTS:
         for d in sizes:
-            for stripes in ("glatt", "senkrecht", "tentakel")   # waagrecht: auf Wunsch entfernt (Muster bleibt im Code):
+            for stripes in ("glatt", "senkrecht", "tentakel"):   # „waagrecht“ auf Wunsch entfernt (Muster bleibt im Code)
                 m = build(v, d, stripes)
                 tm = to_tm(m)
                 label = f"{NAMED_SIZES[d]}-{d}mm" if (d in NAMED_SIZES and not alle) else f"{d}mm"

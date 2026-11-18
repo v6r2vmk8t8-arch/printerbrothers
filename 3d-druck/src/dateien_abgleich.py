@@ -1,7 +1,7 @@
 """Spiegelt den Ordner 3d-druck/ in den Admin-Bereich „3D-Dateien → Von Claude“.
 
-Lädt neue/geänderte Dateien hoch (Vergleich per MD5) und entfernt dort Dateien,
-die im Repository gelöscht wurden. Quellskripte (src/) werden nicht übertragen.
+Lädt neue/geänderte Dateien hoch (Vergleich per MD5) und entfernt dort nur Dateien,
+die in diesem Zweig gelöscht wurden (Dateien anderer Claude-Sitzungen bleiben). Quellskripte (src/) werden nicht übertragen.
 
 Aufruf:  python3 3d-druck/src/dateien_abgleich.py [--trocken]
 
@@ -44,6 +44,19 @@ def lokale_dateien():
     return out
 
 
+_GELOESCHT = None
+
+
+def im_zweig_geloescht():
+    """Pfade (relativ zu 3d-druck/), die in der Git-Geschichte dieses Zweigs gelöscht wurden."""
+    global _GELOESCHT
+    if _GELOESCHT is None:
+        out = subprocess.run(["git", "log", "--diff-filter=D", "--name-only", "--format=", "HEAD", "--", "."],
+                             cwd=ROOT, capture_output=True, text=True).stdout
+        _GELOESCHT = {l[len("3d-druck/"):] for l in out.split() if l.startswith("3d-druck/")}
+    return _GELOESCHT
+
+
 def main():
     remote = {m["pfad"]: m for m in json.loads(curl([BASE + "liste"]))["claude"]}
     local = lokale_dateien()
@@ -64,7 +77,12 @@ def main():
                                          "groesse": len(data), "md5": md5})
             curl(["-X", "POST", "-H", "content-type: application/octet-stream", "--data-binary", "@-",
                   BASE + "hochladen?" + qs], data=data[i * CHUNK:(i + 1) * CHUNK])
-    weg = [m for pfad, m in remote.items() if pfad not in local]
+    # Nur löschen, was in DIESEM Zweig nachweislich gelöscht wurde. Dateien, die dieser Zweig nie hatte,
+    # stammen aus anderen Claude-Sitzungen/Zweigen und bleiben stehen (sonst löschen sich Sitzungen gegenseitig).
+    weg = [m for pfad, m in remote.items() if pfad not in local and pfad in im_zweig_geloescht()]
+    fremd = [p for p in remote if p not in local and p not in im_zweig_geloescht()]
+    if fremd:
+        print(f"  {len(fremd)} Datei(en) aus anderen Zweigen bleiben unangetastet, z. B. {fremd[0]}")
     for m in weg:
         print(f"✕ {m['pfad']} (im Repository gelöscht)")
         if not DRY:
