@@ -54,3 +54,12 @@ Einmalig in Netlify einrichten:
    → „Add notification“ → „Email notification“ → Formular `druckidee`, Adresse eintragen
 Alle Anfragen samt Fotos stehen dann unter **Forms → druckidee**. Antworten einfach an die
 E-Mail-Adresse, die der Kunde angegeben hat.
+
+## Rechnungen (rechnungen/)
+1. Vorlage `rechnungen/daten/2026-001.json` kopieren, z. B. als `2026-002.json`
+2. Nummer, Datum, Kundenadresse (`kunde`, Zeilen) und `positionen` eintragen.
+   `produkt` ist die Shop-ID (z. B. `kaffeeklipp`, `stand`) – Name, Preis und Foto kommen
+   automatisch aus dem Shop. Abweichend: `preis`, `name`, `zusatz` (z. B. Farbe), `bild`.
+3. `node rechnungen/rechnung.mjs rechnungen/daten/2026-002.json` → PDF in `rechnungen/pdf/`
+Absenderdaten und Steuerhinweis stehen oben in `rechnungen/rechnung.mjs` (`ABSENDER`).
+Die fertigen PDFs werden nicht ins Repository übernommen.
