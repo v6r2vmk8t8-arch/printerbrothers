@@ -51,7 +51,7 @@ def im_zweig_geloescht():
     """Pfade (relativ zu 3d-druck/), die in der Git-Geschichte dieses Zweigs gelöscht wurden."""
     global _GELOESCHT
     if _GELOESCHT is None:
-        out = subprocess.run(["git", "log", "--diff-filter=D", "--name-only", "--format=", "HEAD", "--", "."],
+        out = subprocess.run(["git", "log", "--no-renames", "--diff-filter=D", "--name-only", "--format=", "HEAD", "--", "."],
                              cwd=ROOT, capture_output=True, text=True).stdout
         _GELOESCHT = {l[len("3d-druck/"):] for l in out.split() if l.startswith("3d-druck/")}
     return _GELOESCHT

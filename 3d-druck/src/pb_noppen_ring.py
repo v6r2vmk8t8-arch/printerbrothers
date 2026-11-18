@@ -184,9 +184,11 @@ def build(variant, inner_d, stripes, stud_d=None, orient=True):
                        .translate((0, sgn * (band_w / 2 + (max(band_w, ly) + 4) / 2 - 0.01), 0)))
     ring = ring - Manifold.batch_boolean(cutters, OpType.Add)
 
-    # Waagrechte Streifen: Rillen rund um den Reif (parallel zu den Kanten), nicht im Sockel,
+    # Bezeichnung so, wie der Ring AM FINGER aussieht (Finger waagrecht):
+    # „senkrecht“ = Rillen rund um den Reif (quer zum Finger) – „waagrecht“ = Rillen parallel zum Finger.
+    # Rillen rund um den Reif (parallel zu den Kanten), nicht im Sockel,
     # unten frei für die Auflagefläche
-    if stripes == "waagrecht":
+    if stripes == "senkrecht":
         n = max(2, int(round(band_w / 2.4)))             # 3 Rillen bei 7.8 mm, 4 bei 9 mm
         pitch = band_w / (n + 1)
         rings = []
@@ -199,8 +201,8 @@ def build(variant, inner_d, stripes, stud_d=None, orient=True):
         keep = Manifold.cube((lx + 2 * STRIPE_W, 40, 40)).translate((-lx / 2 - STRIPE_W, -20, zc))  # Sockelbereich
         floor = Manifold.cube((200, 40, STRIPE_D + 0.6)).translate((-100, -20, 0))                   # Auflage
         ring = ring - ((cut - keep) if lying else (cut - keep - floor))
-    # Senkrechte Streifen (Rillen quer über den Reif), nicht unter dem Sockel
-    if stripes == "senkrecht":
+    # Rillen quer über den Reif (parallel zum Finger), nicht unter dem Sockel – am Finger „waagrecht“
+    if stripes == "waagrecht":
         cuts = []
         for k in range(STRIPES):
             a = 2 * np.pi * k / STRIPES
