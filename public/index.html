@@ -9,6 +9,27 @@
 <title>Printer Brothers</title>
 <meta name="description" content="Printer Brothers – handgedruckte 3D-Kreationen von Nathanael und Marlon mit ihrem Bambu Lab A1 mini.">
 <meta name="theme-color" content="#080A0B">
+<script>
+/* Design: "auto" folgt dem System (hell/dunkel), sonst die Wahl der Besucher:innen */
+(function(){
+  var KEY = 'pb-theme', mq = window.matchMedia('(prefers-color-scheme: light)');
+  function pref(){ try{ return localStorage.getItem(KEY) || 'auto'; }catch(e){ return 'auto'; } }
+  function apply(){
+    var p = pref(), t = p === 'auto' ? (mq.matches ? 'light' : 'dark') : p;
+    document.documentElement.setAttribute('data-theme', t);
+    document.documentElement.setAttribute('data-theme-pref', p);
+    var m = document.querySelector('meta[name="theme-color"]');
+    if(m) m.setAttribute('content', t === 'light' ? '#FFFFFF' : '#080A0B');
+  }
+  window.pbTheme = {
+    get: pref,
+    set: function(p){ try{ localStorage.setItem(KEY, p); }catch(e){} apply(); },
+    next: function(){ var o = ['auto', 'light', 'dark']; this.set(o[(o.indexOf(pref()) + 1) % 3]); }
+  };
+  if(mq.addEventListener) mq.addEventListener('change', apply);
+  apply();
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..900&family=Instrument+Sans:wght@400..600&family=Azeret+Mono:wght@400..700&display=swap" rel="stylesheet">
@@ -30,8 +51,8 @@
   --plate-3:     #212729;
 
   /* rules */
-  --line:        rgba(236,241,238,0.10);
-  --line-strong: rgba(236,241,238,0.19);
+  --line:        rgba(var(--ink-rgb),0.10);
+  --line-strong: rgba(var(--ink-rgb),0.19);
 
   /* text – tinted from the surface, never neutral gray */
   --ink:         #ECF1EE;
@@ -41,8 +62,8 @@
   /* filament green – the extruded line, the machine's voice */
   --filament:      #39FF14;
   --filament-2:    #8DFF6E;
-  --filament-soft: rgba(57,255,20,0.11);
-  --filament-line: rgba(57,255,20,0.34);
+  --filament-soft: rgba(var(--glow-rgb),0.11);
+  --filament-line: rgba(var(--glow-rgb),0.34);
 
   /* PLA orange – the hands, the brothers, the warm half */
   --pla:      #FF7A2F;
@@ -50,6 +71,14 @@
   --pla-line: rgba(255,122,47,0.32);
 
   --shadow: rgba(0,0,0,0.62);
+
+  /* Rohwerte für halbtransparente Linien/Glow (werden im hellen Design getauscht) */
+  --ink-rgb:  236,241,238;
+  --void-rgb: 8,10,11;
+  --glow-rgb: 57,255,20;
+  --scroll:   #2B3336;
+  --check-a:  #3a4346;
+  --check-b:  #1c2224;
 
   /* machined radii, not SaaS pills */
   --r-xs: 3px;
@@ -63,13 +92,50 @@
   color-scheme: dark;
 }
 
+/* Helles Design: per Schalter (data-theme) oder – ohne Wahl – nach der Systemeinstellung */
+:root[data-theme="light"]{
+  --void:#FFFFFF; --plate:#F5F7F6; --plate-2:#EDF1EF; --plate-3:#E2E8E5;
+  --line:rgba(13,19,17,0.10); --line-strong:rgba(13,19,17,0.18);
+  --ink:#0D1311; --ink-soft:#56645D; --data:#3A4842;
+  --filament:#178A08; --filament-2:#1FA80E; --filament-soft:rgba(23,138,8,0.09); --filament-line:rgba(23,138,8,0.35);
+  --pla:#C8501A; --pla-soft:rgba(200,80,26,0.09); --pla-line:rgba(200,80,26,0.32);
+  --shadow:rgba(20,30,25,0.18);
+  --ink-rgb:13,19,17; --glow-rgb:23,138,8; --void-rgb:255,255,255;
+  --scroll:#C9D1CD; --check-a:#D5DBD8; --check-b:#F2F4F3;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+  --void:#FFFFFF; --plate:#F5F7F6; --plate-2:#EDF1EF; --plate-3:#E2E8E5;
+  --line:rgba(13,19,17,0.10); --line-strong:rgba(13,19,17,0.18);
+  --ink:#0D1311; --ink-soft:#56645D; --data:#3A4842;
+  --filament:#178A08; --filament-2:#1FA80E; --filament-soft:rgba(23,138,8,0.09); --filament-line:rgba(23,138,8,0.35);
+  --pla:#C8501A; --pla-soft:rgba(200,80,26,0.09); --pla-line:rgba(200,80,26,0.32);
+  --shadow:rgba(20,30,25,0.18);
+  --ink-rgb:13,19,17; --glow-rgb:23,138,8; --void-rgb:255,255,255;
+  --scroll:#C9D1CD; --check-a:#D5DBD8; --check-b:#F2F4F3;
+  color-scheme: light;
+  }
+}
+.on-light{ display:none !important; }
+.theme-btn{ display:grid; place-items:center; width:40px; height:40px; border-radius:var(--r-sm); border:1px solid var(--line);
+  background:none; color:var(--ink-soft); cursor:pointer; transition:color .2s, border-color .2s; }
+.theme-btn:hover{ color:var(--ink); border-color:var(--line-strong); }
+.theme-btn svg{ width:19px; height:19px; display:none; }
+:root[data-theme-pref="auto"] .theme-btn .ti-auto,
+:root[data-theme-pref="light"] .theme-btn .ti-light,
+:root[data-theme-pref="dark"] .theme-btn .ti-dark{ display:block; }
+:root:not([data-theme-pref]) .theme-btn .ti-auto{ display:block; }
+:root[data-theme="light"] .on-light{ display:block !important; }
+:root[data-theme="light"] .on-dark{ display:none !important; }
+
 *{ box-sizing:border-box; }
 
 html{
   scroll-behavior:smooth;
   -webkit-text-size-adjust:100%;
   text-size-adjust:100%;
-  scrollbar-color: #2B3336 var(--void);
+  scrollbar-color: var(--scroll) var(--void);
   scrollbar-width: thin;
 }
 
@@ -89,7 +155,7 @@ body{
 ::selection{ background:var(--filament); color:var(--void); }
 ::-webkit-scrollbar{ width:11px; height:11px; }
 ::-webkit-scrollbar-track{ background:var(--void); }
-::-webkit-scrollbar-thumb{ background:#2B3336; border:3px solid var(--void); border-radius:99px; }
+::-webkit-scrollbar-thumb{ background:var(--scroll); border:3px solid var(--void); border-radius:99px; }
 ::-webkit-scrollbar-thumb:hover{ background:var(--filament); }
 
 :focus-visible{
@@ -228,15 +294,15 @@ header.nav{
   position:relative; overflow:hidden;
   padding-block:clamp(3.25rem, 8vw, 6.5rem) clamp(2.5rem, 6vw, 4.5rem);
   background:
-    radial-gradient(64% 52% at 78% 22%, rgba(57,255,20,0.10), transparent 68%),
+    radial-gradient(64% 52% at 78% 22%, rgba(var(--glow-rgb),0.10), transparent 68%),
     linear-gradient(to bottom, var(--void), var(--void));
 }
 /* the build plate, faintly */
 .hero::before{
   content:""; position:absolute; inset:0; pointer-events:none;
   background-image:
-    linear-gradient(to right, rgba(236,241,238,0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(236,241,238,0.045) 1px, transparent 1px);
+    linear-gradient(to right, rgba(var(--ink-rgb),0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(var(--ink-rgb),0.045) 1px, transparent 1px);
   background-size:46px 46px;
   -webkit-mask-image:radial-gradient(78% 62% at 50% 42%, #000, transparent 78%);
   mask-image:radial-gradient(78% 62% at 50% 42%, #000, transparent 78%);
@@ -268,14 +334,14 @@ header.nav{
 .pline::before{
   content:""; position:absolute; inset:-2% -1%;
   background:repeating-linear-gradient(to bottom,
-    rgba(8,10,11,0.30) 0 1px, transparent 1px 6px);
+    rgba(var(--void-rgb),0.30) 0 1px, transparent 1px 6px);
   pointer-events:none; z-index:2;
 }
 /* the nozzle pass that lays each line down */
 .pline::after{
   content:""; position:absolute; left:-2%; right:-2%; height:2px;
   background:var(--filament);
-  box-shadow:0 0 16px 2px rgba(57,255,20,0.85);
+  box-shadow:0 0 16px 2px rgba(var(--glow-rgb),0.85);
   top:-4px; opacity:0; z-index:3; pointer-events:none;
 }
 
@@ -314,16 +380,16 @@ header.nav{
              border-color .24s var(--ease-out), box-shadow .24s var(--ease-out);
 }
 .btn-primary{ background:var(--filament); color:var(--void); }
-.btn-primary:hover{ background:var(--filament-2); box-shadow:0 6px 22px -8px rgba(57,255,20,0.6); }
+.btn-primary:hover{ background:var(--filament-2); box-shadow:0 6px 22px -8px rgba(var(--glow-rgb),0.6); }
 .btn-ghost{ border-color:var(--line-strong); color:var(--ink); background:none; }
-.btn-ghost:hover{ border-color:var(--ink-soft); background:rgba(236,241,238,0.05); }
+.btn-ghost:hover{ border-color:var(--ink-soft); background:rgba(var(--ink-rgb),0.05); }
 
 /* — the slicer preview — */
 .preview{
   position:relative; width:100%; max-width:460px; margin-inline:auto;
   border:1px solid var(--line); border-radius:var(--r-lg);
   background:
-    radial-gradient(80% 70% at 50% 100%, rgba(57,255,20,0.08), transparent 70%),
+    radial-gradient(80% 70% at 50% 100%, rgba(var(--glow-rgb),0.08), transparent 70%),
     var(--plate);
   overflow:hidden;
   box-shadow:0 34px 70px -40px var(--shadow);
@@ -359,7 +425,7 @@ header.nav{
 /* the build-plate glow breathes while the printer works */
 .preview::after{
   content:""; position:absolute; inset:auto 12% 0 12%; height:40%; pointer-events:none;
-  background:radial-gradient(60% 80% at 50% 100%, rgba(57,255,20,0.10), transparent 70%);
+  background:radial-gradient(60% 80% at 50% 100%, rgba(var(--glow-rgb),0.10), transparent 70%);
   animation:breathe 4.2s ease-in-out infinite;
 }
 @keyframes breathe{ 50%{ opacity:.45; } }
@@ -437,10 +503,10 @@ header.nav{
 .story-poster{
   display:block; max-width:460px; width:100%; justify-self:center;
   border-color:var(--filament-line);
-  box-shadow:0 34px 70px -40px var(--shadow), 0 0 60px -30px rgba(57,255,20,0.45);
+  box-shadow:0 34px 70px -40px var(--shadow), 0 0 60px -30px rgba(var(--glow-rgb),0.45);
   transition:transform .5s var(--ease-out), box-shadow .5s var(--ease-out);
 }
-.story-poster:hover{ transform:translateY(-4px); box-shadow:0 40px 80px -40px var(--shadow), 0 0 70px -26px rgba(57,255,20,0.6); }
+.story-poster:hover{ transform:translateY(-4px); box-shadow:0 40px 80px -40px var(--shadow), 0 0 70px -26px rgba(var(--glow-rgb),0.6); }
 .story-poster img{ display:block; width:100%; height:auto; }
 @media (max-width:640px){ #workshopScene{ height:280px; } }
 
@@ -480,7 +546,7 @@ header.nav{
   position:relative; overflow:hidden;
   aspect-ratio:4/3; border-radius:var(--r-md);
   background:
-    repeating-linear-gradient(to bottom, rgba(236,241,238,0.028) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(to bottom, rgba(var(--ink-rgb),0.028) 0 1px, transparent 1px 6px),
     var(--plate-2);
   display:flex; align-items:center; justify-content:center; padding:1.2rem;
 }
@@ -582,7 +648,7 @@ header.nav{
 /* Kundentext (z. B. Name für den Anhänger) */
 .cart-logo{ display:flex; flex-direction:column; gap:0.3rem; margin-top:0.65rem; font-size:0.74rem; color:var(--ink-soft); }
 .cart-logo em{ font-style:normal; opacity:.75; }
-.cart-logo-pick{ display:inline-block; align-self:flex-start; padding:0.4rem 0.7rem; border:1px dashed var(--line-strong, rgba(236,241,238,.3));
+.cart-logo-pick{ display:inline-block; align-self:flex-start; padding:0.4rem 0.7rem; border:1px dashed var(--line-strong, rgba(var(--ink-rgb),.3));
   border-radius:var(--r-xs, 6px); cursor:pointer; color:var(--ink); }
 .cart-logo-pick:hover{ border-color:var(--filament-line); }
 .cart-logo-pick:focus-within{ outline:2px solid var(--filament-line); }
@@ -668,13 +734,13 @@ header.nav{
 /* Filamentfarben */
 .swatch{
   --c:#888; display:inline-block; border-radius:50%; background:var(--c);
-  box-shadow:inset 0 0 0 1px rgba(236,241,238,0.24); flex:none;
+  box-shadow:inset 0 0 0 1px rgba(var(--ink-rgb),0.24); flex:none;
 }
 .swatch.clear, .sw.clear{
   background:
     linear-gradient(135deg, rgba(255,255,255,0.6), rgba(255,255,255,0) 55%),
     linear-gradient(color-mix(in srgb, var(--c) 45%, transparent), color-mix(in srgb, var(--c) 45%, transparent)),
-    repeating-conic-gradient(#3a4346 0 25%, #1c2224 0 50%) 0 0 / 8px 8px;
+    repeating-conic-gradient(var(--check-a) 0 25%, var(--check-b) 0 50%) 0 0 / 8px 8px;
 }
 .product-colors{
   display:flex; align-items:center; gap:0.6rem;
@@ -682,7 +748,7 @@ header.nav{
   letter-spacing:0.04em; text-transform:uppercase; color:var(--data);
 }
 .product-colors .dots{ display:flex; }
-.product-colors .swatch{ width:14px; height:14px; margin-left:-4px; box-shadow:inset 0 0 0 1px rgba(236,241,238,0.24), 0 0 0 2px var(--plate); }
+.product-colors .swatch{ width:14px; height:14px; margin-left:-4px; box-shadow:inset 0 0 0 1px rgba(var(--ink-rgb),0.24), 0 0 0 2px var(--plate); }
 .product-colors .swatch:first-child{ margin-left:0; }
 
 .cart-colors{ display:flex; flex-direction:column; gap:0.6rem; margin-top:0.65rem; }
@@ -695,12 +761,12 @@ header.nav{
 .sw{
   --c:#888; width:30px; height:30px; border-radius:50%; padding:0; cursor:pointer;
   border:0; background:var(--c);
-  box-shadow:inset 0 0 0 1px rgba(236,241,238,0.24);
+  box-shadow:inset 0 0 0 1px rgba(var(--ink-rgb),0.24);
   transition:box-shadow .2s var(--ease-out), transform .2s var(--ease-out);
 }
 .sw:hover{ transform:scale(1.08); }
 .sw[aria-checked="true"]{
-  box-shadow:inset 0 0 0 1px rgba(236,241,238,0.24), 0 0 0 2px var(--plate), 0 0 0 4px var(--filament);
+  box-shadow:inset 0 0 0 1px rgba(var(--ink-rgb),0.24), 0 0 0 2px var(--plate), 0 0 0 4px var(--filament);
 }
 .sw:focus-visible{ outline:2px solid var(--filament); outline-offset:4px; }
 .checkout-row > span:first-child{ min-width:0; }
@@ -907,7 +973,8 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
 <header class="nav">
   <div class="wrap nav-inner">
     <a class="brand" href="#top">
-      <img class="brand-logo" src="brand/pb-logo-horizontal-dark-bg.svg" alt="Printer Brothers" width="739" height="200">
+      <img class="brand-logo on-dark" src="brand/pb-logo-horizontal-dark-bg.svg" alt="Printer Brothers" width="739" height="200">
+      <img class="brand-logo on-light" src="brand/pb-logo-horizontal-light-bg.svg" alt="Printer Brothers" width="739" height="200">
     </a>
     <nav>
       <ul class="nav-links">
@@ -917,6 +984,11 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
       </ul>
     </nav>
     <div class="nav-right">
+      <button class="theme-btn" id="themeToggle" type="button" aria-label="Design wechseln" title="Design: automatisch">
+        <svg class="ti ti-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/></svg>
+        <svg class="ti ti-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="ti ti-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+      </button>
       <a class="nav-cta" href="#shop">Zum Shop</a>
       <button class="cart-btn" id="cartToggle" aria-label="Warenkorb öffnen" aria-controls="cartDrawer">
         <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-cart"></use></svg>
@@ -945,7 +1017,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
         <div class="hero-copy">
           <div class="wordmark">
             <h1>
-              <span class="pline pline-1"><img class="wordmark-logo" src="brand/pb-logo-horizontal-dark-bg.svg" alt="Printer Brothers" width="739" height="200"></span>
+              <span class="pline pline-1"><img class="wordmark-logo on-dark" src="brand/pb-logo-horizontal-dark-bg.svg" alt="Printer Brothers" width="739" height="200"><img class="wordmark-logo on-light" src="brand/pb-logo-horizontal-light-bg.svg" alt="" width="739" height="200"></span>
             </h1>
           </div>
           <p class="hero-sub">
@@ -1188,7 +1260,8 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
 <footer>
   <div class="wrap footer-inner">
     <div class="footer-brand">
-      <img src="brand/pb-wordmark-dark-bg.svg" alt="Printer Brothers" width="764" height="72">
+      <img class="on-dark" src="brand/pb-wordmark-dark-bg.svg" alt="Printer Brothers" width="764" height="72">
+      <img class="on-light" src="brand/pb-wordmark-light-bg.svg" alt="Printer Brothers" width="764" height="72">
     </div>
     <div class="social">
       <a href="#" aria-label="Instagram">
@@ -1758,6 +1831,15 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
   });
 
   renderCart();
+})();
+
+(function(){
+  var b = document.getElementById('themeToggle');
+  if(!b || !window.pbTheme) return;
+  var NAMES = { auto:'automatisch (wie System)', light:'hell', dark:'dunkel' };
+  function label(){ var p = window.pbTheme.get(); b.title = 'Design: ' + NAMES[p] + ' – klicken zum Wechseln'; b.setAttribute('aria-label', b.title); }
+  b.addEventListener('click', function(){ window.pbTheme.next(); label(); });
+  label();
 })();
 
 (function(){
