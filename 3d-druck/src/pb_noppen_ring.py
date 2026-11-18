@@ -251,7 +251,7 @@ def to_tm(m):
     return trimesh.Trimesh(np.asarray(mesh.vert_properties)[:, :3], np.asarray(mesh.tri_verts), process=False)
 
 
-NAMED_SIZES = {15: "kinder", 17: "frauen", 20: "maenner"}   # Innendurchmesser -> Bezeichnung
+NAMED_SIZES = {15: "klein", 17: "mittel", 20: "gross"}   # Innendurchmesser -> Bezeichnung
 
 
 def passtest():
