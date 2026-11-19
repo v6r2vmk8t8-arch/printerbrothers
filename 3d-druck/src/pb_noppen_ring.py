@@ -27,6 +27,9 @@ set_circular_segments(128)
 PITCH = 8.0        # Noppenraster
 GAP = 0.1          # Spiel je Seite -> 7.8 mm Grundmaß
 STUD_D = 4.95      # Noppen-Ø (Nennmaß 4.8; stehend gedruckt passt 4.95 – 4.90 war eine Spur zu schmal)
+STUD_D_BY_VARIANT = {   # Ringe mit 1–2 Noppen: Steine rutschten bei 4.95 noch herunter -> 5.00
+    "1x1": 5.00, "1x1-loch": 5.00, "1x2": 5.00,
+}                       # 2x2 bleibt bei STUD_D (passt perfekt)
 STUD_H = 2.25      # Noppenhöhe (Nennmaß 1.7; nach Testdrucken +0.55 für mehr Halt)
 STUD_CHAMFER = 0.25
 
@@ -123,7 +126,7 @@ def build(variant, inner_d, stripes, stud_d=None, orient=True):
     ohne Lochspitze; mit orient=True zum Schluss in Drucklage gekippt (Ringachse = Z)."""
     stripes = {True: 'senkrecht', False: 'glatt'}.get(stripes, stripes)
     lying = lies_flat(variant)
-    stud_d = stud_d or STUD_D
+    stud_d = stud_d or STUD_D_BY_VARIANT.get(variant, STUD_D)
     nx, ny, band_w = VARIANTS[variant][:3]
     hollow = len(VARIANTS[variant]) > 3
     ri = inner_d / 2
