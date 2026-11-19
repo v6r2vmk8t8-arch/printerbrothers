@@ -626,6 +626,43 @@ header.nav{
 .cart-close svg{ width:16px; height:16px; display:block; }
 .cart-close:hover{ color:var(--ink); border-color:var(--ink-soft); }
 
+.shop-tools{ display:flex; align-items:center; gap:0.8rem 1.2rem; flex-wrap:wrap; margin:0 0 1.6rem; }
+.shop-search{ flex:1 1 280px; max-width:460px; display:flex; align-items:center; gap:0.6rem; padding:0 0.9rem;
+  background:var(--plate); border:1px solid var(--line-strong); border-radius:var(--r-sm); color:var(--ink-soft); }
+.shop-search:focus-within{ border-color:var(--filament-line); box-shadow:0 0 0 3px var(--filament-soft); }
+.shop-search svg{ width:18px; height:18px; flex:none; }
+.shop-search input{ flex:1; min-width:0; border:0; background:none; color:var(--ink); font:inherit; font-size:1rem; padding:0.75rem 0; outline:none; }
+.shop-count{ font-family:"Azeret Mono", monospace; font-size:0.75rem; color:var(--data); }
+.shop-empty{ color:var(--ink-soft); text-align:center; padding:2rem 0; }
+.product.filtered{ display:none !important; }
+.rating-btn{ display:inline-flex; align-items:center; gap:0.45rem; align-self:flex-start; background:none; border:0; padding:0.15rem 0; cursor:pointer;
+  color:var(--ink-soft); font:inherit; font-size:0.8rem; }
+.rating-btn:hover{ color:var(--ink); }
+.stars{ color:#F2B705; letter-spacing:0.05em; font-size:0.95rem; }
+.stars .off{ color:var(--line-strong); }
+.rev-dialog{ width:min(560px, calc(100vw - 32px)); max-height:min(88vh, 900px); border:1px solid var(--line-strong); border-radius:var(--r-lg);
+  background:var(--plate); color:var(--ink); padding:1.2rem 1.2rem 1.4rem; }
+.rev-dialog::backdrop{ background:rgba(4,6,7,0.66); }
+.rev-head{ display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:0.6rem; }
+.rev-head h2{ font-size:1.15rem; }
+.rev-summary{ color:var(--ink-soft); font-size:0.9rem; margin-bottom:0.8rem; }
+.rev-list{ list-style:none; margin:0 0 1.2rem; padding:0; display:flex; flex-direction:column; gap:0.8rem; }
+.rev-list li{ border-top:1px solid var(--line); padding-top:0.7rem; font-size:0.92rem; }
+.rev-list .meta{ display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap; color:var(--ink-soft); font-size:0.78rem; }
+.rev-list .ver{ color:var(--filament); font-weight:600; }
+.rev-list p{ margin:0.3rem 0 0; overflow-wrap:anywhere; }
+.rev-list .reply{ margin-top:0.4rem; padding-left:0.8rem; border-left:2px solid var(--filament-line); color:var(--ink-soft); }
+.rev-form{ display:flex; flex-direction:column; gap:0.7rem; border-top:1px solid var(--line); padding-top:1rem; }
+.rev-form h3{ font-size:0.95rem; text-transform:uppercase; }
+.rev-stars{ border:0; margin:0; padding:0; display:flex; flex-direction:row-reverse; justify-content:flex-end; gap:0.15rem; }
+.rev-stars legend{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+.rev-stars input{ position:absolute; opacity:0; width:1px; height:1px; }
+.rev-stars label{ font-size:2rem; line-height:1; cursor:pointer; color:var(--line-strong); padding:0 0.1rem; }
+.rev-stars input:checked ~ label, .rev-stars label:hover, .rev-stars label:hover ~ label{ color:#F2B705; }
+.rev-stars input:focus-visible + label{ outline:2px solid var(--filament); border-radius:4px; }
+.rev-note{ font-size:0.76rem; color:var(--ink-soft); margin:0; }
+.rev-note a{ color:var(--filament); }
+.rev-thanks{ color:var(--filament); font-weight:600; }
 .checkout-form{ display:flex; flex-direction:column; gap:1rem; margin:1.2rem 0 1rem; }
 .checkout-form fieldset{ border:0; margin:0; padding:0; display:flex; flex-direction:column; gap:0.6rem; }
 .checkout-form fieldset[hidden]{ display:none; }
@@ -1130,6 +1167,15 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
         </div>
       </div>
 
+      <div class="shop-tools">
+        <label class="shop-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+          <input type="search" id="shopSearch" placeholder="Produkt suchen, z. B. Ring, Ständer …" aria-label="Produkte durchsuchen" autocomplete="off">
+        </label>
+        <span class="shop-count" id="shopCount" aria-live="polite"></span>
+      </div>
+      <p class="shop-empty" id="shopEmpty" hidden>Nichts gefunden. Probiert ein anderes Wort – oder schickt uns unten eure Druckidee.</p>
+
       <div class="shop-grid" id="shopGrid" data-stagger>
 
         <article class="product reveal">
@@ -1315,6 +1361,37 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
     </nav>
   </div>
 </footer>
+
+<!-- Bewertungen eines Produkts -->
+<dialog class="rev-dialog" id="revDialog" aria-labelledby="revTitle">
+  <div class="rev-head">
+    <h2 id="revTitle">Bewertungen</h2>
+    <button class="cart-close" type="button" id="revClose" aria-label="Schließen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+    </button>
+  </div>
+  <div class="rev-summary" id="revSummary"></div>
+  <ul class="rev-list" id="revList"></ul>
+  <form class="rev-form" id="revForm" novalidate>
+    <h3>Eure Bewertung</h3>
+    <fieldset class="rev-stars" id="revStars">
+      <legend>Sterne</legend>
+      <input type="radio" name="stars" value="5" id="rs5"><label for="rs5" title="5 Sterne">★</label>
+      <input type="radio" name="stars" value="4" id="rs4"><label for="rs4" title="4 Sterne">★</label>
+      <input type="radio" name="stars" value="3" id="rs3"><label for="rs3" title="3 Sterne">★</label>
+      <input type="radio" name="stars" value="2" id="rs2"><label for="rs2" title="2 Sterne">★</label>
+      <input type="radio" name="stars" value="1" id="rs1"><label for="rs1" title="1 Stern">★</label>
+    </fieldset>
+    <label class="co-field"><span>Name <em>– wird angezeigt, Vorname reicht</em></span><input name="name" maxlength="40" autocomplete="given-name"></label>
+    <label class="co-field"><span>Eure Meinung</span><textarea name="text" rows="3" maxlength="600"></textarea></label>
+    <label class="co-field"><span>Bestellnummer <em>– freiwillig, für „Verifizierter Kauf“</em></span><input name="order" maxlength="20" placeholder="PB-261124-AB12" autocomplete="off"></label>
+    <p class="hp-field" aria-hidden="true"><label>Nicht ausfüllen <input name="website" tabindex="-1" autocomplete="off"></label></p>
+    <p class="rev-note">Wir lesen jede Bewertung, bevor sie erscheint (gegen Spam). „Verifizierter Kauf“ steht nur dabei, wenn die Bestellnummer zu einer Bestellung dieses Produkts passt; andere Bewertungen prüfen wir nicht auf einen Kauf. Mehr in der <a href="/datenschutz.html" target="_blank">Datenschutzerklärung</a>.</p>
+    <p class="co-error" id="revError" role="alert" hidden></p>
+    <button class="btn btn-primary" type="submit" id="revSubmit">Bewertung senden</button>
+  </form>
+  <p class="rev-thanks" id="revThanks" hidden>Danke! Wir schauen uns eure Bewertung an und schalten sie dann frei.</p>
+</dialog>
 
 <!-- Benachrichtigung über neue Bestellungen (Netlify Forms, mit Logo-Dateien) -->
 <form name="bestellung" data-netlify="true" netlify-honeypot="bot-field" enctype="multipart/form-data" hidden>
@@ -1599,12 +1676,111 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
         '</div>';
       var pics = el.querySelectorAll('.product-art img');
       pics.forEach(function(img, k){ img.alt = pics.length > 1 ? p.name + ' – Foto ' + (k + 1) + ' von ' + pics.length : p.name; });
+      el.setAttribute('data-id', p.id);
+      el.setAttribute('data-search', norm(p.name + ' ' + (p.desc || '')));
       initGallery(el);
       grid.appendChild(el);
       if(window.pbReveal) window.pbReveal(el); else el.classList.add('in');
     });
     PRODUCTS = next;
     renderCart();
+    decorateRatings();
+    applySearch();
+  }
+
+  /* ---------- Suche ---------- */
+  function norm(s){ return String(s || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+  var searchEl = document.getElementById('shopSearch');
+  function applySearch(){
+    if(!searchEl) return;
+    var words = norm(searchEl.value).split(/\s+/).filter(Boolean);
+    var cards = grid.querySelectorAll('article.product'), shown = 0;
+    Array.prototype.forEach.call(cards, function(c){
+      var hay = c.getAttribute('data-search') || norm(c.textContent);
+      var ok = words.every(function(w){ return hay.indexOf(w) >= 0; });
+      c.classList.toggle('filtered', !ok);
+      if(ok){ shown++; c.classList.add('in'); }
+    });
+    document.getElementById('shopEmpty').hidden = shown > 0;
+    document.getElementById('shopCount').textContent = words.length ? shown + ' von ' + cards.length + ' Produkten' : cards.length + ' Produkte';
+  }
+  if(searchEl) searchEl.addEventListener('input', applySearch);
+  applySearch();
+
+  /* ---------- Bewertungen ---------- */
+  var REVIEWS = {};       // productId -> [Bewertung]
+  function starsHTML(n){
+    var r = Math.round(n * 2) / 2, out = '';
+    for(var i = 1; i <= 5; i++) out += i <= Math.round(n) ? '★' : '<span class="off">★</span>';
+    return '<span class="stars" aria-hidden="true">' + out + '</span>';
+  }
+  function avg(list){ return list.reduce(function(s, r){ return s + r.stars; }, 0) / list.length; }
+  function fmt1(n){ return n.toLocaleString('de-AT', { minimumFractionDigits:1, maximumFractionDigits:1 }); }
+  function decorateRatings(){
+    Array.prototype.forEach.call(grid.querySelectorAll('article.product[data-id]'), function(card){
+      var id = card.getAttribute('data-id'), list = REVIEWS[id] || [];
+      var old = card.querySelector('.rating-btn'); if(old) old.remove();
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'rating-btn'; b.setAttribute('data-rev', id);
+      if(list.length){
+        var a = avg(list);
+        b.innerHTML = starsHTML(a) + '<span>' + fmt1(a) + ' · ' + list.length + (list.length === 1 ? ' Bewertung' : ' Bewertungen') + '</span>';
+        b.setAttribute('aria-label', 'Bewertungen: ' + fmt1(a) + ' von 5 Sternen, ' + list.length + ' Bewertungen – ansehen');
+      } else {
+        b.innerHTML = starsHTML(0) + '<span>Noch keine Bewertung – jetzt bewerten</span>';
+      }
+      var foot = card.querySelector('.product-foot');
+      if(foot) foot.parentNode.insertBefore(b, foot);
+    });
+  }
+  if(window.fetch && location.protocol !== 'file:'){
+    fetch('/api/bewertungen').then(function(r){ return r.ok ? r.json() : []; }).then(function(list){
+      REVIEWS = {};
+      (Array.isArray(list) ? list : []).forEach(function(r){ (REVIEWS[r.productId] = REVIEWS[r.productId] || []).push(r); });
+      decorateRatings();
+    }).catch(function(){});
+  }
+  var revDialog = document.getElementById('revDialog'), revForm = document.getElementById('revForm'), revFor = null;
+  function openReviews(id){
+    var p = PRODUCTS[id]; if(!p || !revDialog) return;
+    revFor = id;
+    var list = REVIEWS[id] || [];
+    document.getElementById('revTitle').textContent = 'Bewertungen · ' + p.name;
+    document.getElementById('revSummary').innerHTML = list.length
+      ? starsHTML(avg(list)) + ' ' + fmt1(avg(list)) + ' von 5 · ' + list.length + (list.length === 1 ? ' Bewertung' : ' Bewertungen')
+      : 'Noch keine Bewertungen – schreibt die erste!';
+    document.getElementById('revList').innerHTML = list.map(function(r){
+      return '<li><div class="meta">' + starsHTML(r.stars) + '<b>' + esc(r.name) + '</b><span>' + esc(new Date(r.date).toLocaleDateString('de-AT')) + '</span>' +
+        (r.verified ? '<span class="ver">✓ Verifizierter Kauf</span>' : '') + '</div><p>' + esc(r.text) + '</p>' +
+        (r.reply ? '<p class="reply"><b>Printer Brothers:</b> ' + esc(r.reply) + '</p>' : '') + '</li>';
+    }).join('');
+    revForm.reset(); revForm.hidden = false;
+    document.getElementById('revThanks').hidden = true;
+    document.getElementById('revError').hidden = true;
+    if(revDialog.showModal) revDialog.showModal(); else revDialog.setAttribute('open', '');
+  }
+  grid.addEventListener('click', function(e){
+    var b = e.target.closest('.rating-btn'); if(b) openReviews(b.getAttribute('data-rev'));
+  });
+  if(revDialog){
+    document.getElementById('revClose').addEventListener('click', function(){ revDialog.close(); });
+    revDialog.addEventListener('click', function(e){ if(e.target === revDialog) revDialog.close(); });
+    revForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      var err = document.getElementById('revError'), btn = document.getElementById('revSubmit');
+      var st = revForm.querySelector('input[name="stars"]:checked');
+      var data = { productId: revFor, stars: st ? Number(st.value) : 0, name: revForm.elements.name.value.trim(),
+        text: revForm.elements.text.value.trim(), order: revForm.elements.order.value.trim(), website: revForm.elements.website.value };
+      var msg = !data.stars ? 'Bitte Sterne wählen.' : data.name.length < 2 ? 'Bitte einen Namen angeben.' : data.text.length < 3 ? 'Bitte ein paar Worte schreiben.' : '';
+      if(msg){ err.textContent = msg; err.hidden = false; return; }
+      btn.disabled = true; err.hidden = true;
+      fetch('/api/bewertungen', { method:'POST', headers:{ 'content-type':'application/json' }, body: JSON.stringify(data) })
+        .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(b){ if(!r.ok || !b.ok) throw new Error(b.error || 'Fehler ' + r.status); return b; }); })
+        .then(function(){ revForm.hidden = true; document.getElementById('revThanks').hidden = false; })
+        .catch(function(ex){ err.textContent = ex.message; err.hidden = false; })
+        .then(function(){ btn.disabled = false; });
+    });
   }
   /* Galerie: Punkte mitführen, Pfeile für Maus/Tastatur */
   function initGallery(card){

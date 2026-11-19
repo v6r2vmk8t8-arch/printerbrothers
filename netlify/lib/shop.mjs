@@ -258,3 +258,41 @@ export function paymentInfo(order, settings) {
   if (order.payment === "paypal") return { kind: "paypal", url: `https://paypal.me/${encodeURIComponent(settings.paypalMe)}/${amount}EUR`, amount };
   return { kind: "cash", amount, pickup: settings.pickup.text };
 }
+
+/* ---------- Bewertungen (werden vor der Veröffentlichung im Admin freigegeben) ---------- */
+export const reviewStore = () => getStore({ name: "reviews", consistency: "strong" });
+export const REVIEW_STATUS = ["neu", "freigegeben", "abgelehnt"];
+
+export async function loadReviews() {
+  const store = reviewStore();
+  const { blobs } = await store.list({ prefix: "r/" });
+  const list = (await Promise.all(blobs.map((b) => store.get(b.key, { type: "json" })))).filter(Boolean);
+  return list.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+}
+
+/* Neue Bewertung prüfen; mit Bestellnummer wird geprüft, ob das Produkt wirklich bestellt wurde */
+export async function buildReview(input, products) {
+  const p = products.find((x) => x.id === String(input?.productId || "") && x.visible !== false);
+  if (!p) throw new Error("Produkt nicht gefunden.");
+  const stars = Math.round(Number(input?.stars));
+  if (!(stars >= 1 && stars <= 5)) throw new Error("Bitte 1 bis 5 Sterne wählen.");
+  const name = str(input?.name, 40);
+  if (name.length < 2) throw new Error("Bitte einen Namen (oder Vornamen) angeben.");
+  const text = str(input?.text, 600);
+  if (text.length < 3) throw new Error("Bitte ein paar Worte zum Produkt schreiben.");
+  if (/https?:\/\/|www\./i.test(text + name)) throw new Error("Bitte keine Links in die Bewertung schreiben.");
+  let verified = false;
+  const order = str(input?.order, 20).toUpperCase();
+  if (order) {
+    if (!/^PB-\d{6}-[A-Z0-9]{4}$/.test(order)) throw new Error("Die Bestellnummer sieht nicht richtig aus (z. B. PB-261124-AB12).");
+    const o = await orderStore().get("o/" + order + ".json", { type: "json" });
+    verified = !!(o && o.status !== "storniert" && o.items.some((i) => i.id === p.id));
+  }
+  const id = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+  return { id, productId: p.id, productName: p.name, stars, name, text, verified, order: verified ? order : "", status: "neu", createdAt: new Date().toISOString() };
+}
+
+/* Öffentliche Ansicht: nur freigegebene, ohne Bestellnummer */
+export function publicReview(r) {
+  return { id: r.id, productId: r.productId, stars: r.stars, name: r.name, text: r.text, verified: r.verified, date: r.createdAt.slice(0, 10), reply: r.reply || "" };
+}

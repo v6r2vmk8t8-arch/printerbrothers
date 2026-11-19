@@ -1,5 +1,5 @@
 // Admin: Login prüfen, Produkte und Filamente speichern, Fotos hochladen
-import { checkAuth, cleanupImages, json, loadFilaments, loadProducts, loadSettings, ORDER_STATUS, orderStore, sanitizeFilaments, sanitizeList, sanitizeSettings, saveFilaments, saveProducts, saveSettings, shopStore } from "../lib/shop.mjs";
+import { checkAuth, cleanupImages, json, loadFilaments, loadProducts, loadReviews, loadSettings, ORDER_STATUS, orderStore, REVIEW_STATUS, reviewStore, sanitizeFilaments, sanitizeList, sanitizeSettings, saveFilaments, saveProducts, saveSettings, shopStore } from "../lib/shop.mjs";
 
 const TYPES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 const MAX_BYTES = 4 * 1024 * 1024;
@@ -60,6 +60,26 @@ export default async (req) => {
       order.updatedAt = new Date().toISOString();
       await store.setJSON(key, order);
       return json({ ok: true, order });
+    }
+
+    if (route === "reviews" && req.method === "GET") return json(await loadReviews());
+
+    const rm = route.match(/^reviews\/([a-z0-9]+-[a-z0-9]{6})$/);
+    if (rm && (req.method === "PUT" || req.method === "DELETE")) {
+      const store = reviewStore();
+      const key = "r/" + rm[1] + ".json";
+      const r = await store.get(key, { type: "json" });
+      if (!r) return json({ error: "Bewertung nicht gefunden." }, 404);
+      if (req.method === "DELETE") { await store.delete(key); return json({ ok: true }); }
+      const body = await req.json();
+      if (body.status !== undefined) {
+        if (!REVIEW_STATUS.includes(body.status)) return json({ error: "Status ungültig." }, 400);
+        r.status = body.status;
+      }
+      if (body.reply !== undefined) r.reply = String(body.reply).replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 400);
+      r.updatedAt = new Date().toISOString();
+      await store.setJSON(key, r);
+      return json({ ok: true, review: r });
     }
 
     if (route === "upload" && req.method === "POST") {
