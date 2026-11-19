@@ -1703,7 +1703,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
       if(ok){ shown++; c.classList.add('in'); }
     });
     document.getElementById('shopEmpty').hidden = shown > 0;
-    document.getElementById('shopCount').textContent = words.length ? shown + ' von ' + cards.length + ' Produkten' : cards.length + ' Produkte';
+    document.getElementById('shopCount').textContent = words.length ? shown + ' von ' + cards.length + ' Produkten' : cards.length + (cards.length === 1 ? ' Produkt' : ' Produkte');
   }
   if(searchEl) searchEl.addEventListener('input', applySearch);
   applySearch();

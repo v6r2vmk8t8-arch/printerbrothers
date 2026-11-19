@@ -37,6 +37,7 @@ Die ersten Zeilen liegen schon auf `main` (Deploy pausiert), die letzten zwei nu
 | Schriften + three.js lokal (keine Verbindung zu Google/jsDelivr) | Netzwerk-Tab: nur eigene Domain |
 | Vorschau-Hinweise im Shop entfernt | Shop-Bereich |
 | Shop-Suche (Name + Beschreibung, ä/ae egal) mit Trefferzahl | Shop: Suchfeld über den Produkten |
+| Bis zu 6 Fotos pro Produkt (Admin: 3 Spalten) | `/admin` → Produkt bearbeiten |
 | Bewertungen 1–5 Sterne je Produkt, erst nach Freigabe sichtbar, „Verifizierter Kauf“ per Bestellnummer, Antwort möglich | Shop-Karte „★ Bewertungen“; Admin-Reiter „Bewertungen“; `/api/bewertungen` |
 
 ### VOR dem Deploy vom Nutzer nötig

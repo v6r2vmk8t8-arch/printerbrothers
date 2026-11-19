@@ -8,7 +8,7 @@ export const IMG_KEY = /^[a-z0-9-]{6,40}\.(jpg|png|webp)$/;
 const PRODUCTS_KEY = "products.json";
 const FILAMENTS_KEY = "filaments.json";
 export const MAX_COLORS = 4; // A1 mini + AMS lite: bis zu 4 Farben pro Druck
-export const MAX_IMAGES = 4;
+export const MAX_IMAGES = 6;
 export const MAX_OPTIONS = 3; // Auswahlfelder pro Produkt (z. B. Größe, Muster)
 
 export const shopStore = () => getStore({ name: "shop", consistency: "strong" });
@@ -81,7 +81,7 @@ export function sanitizeList(input) {
     seen.add(id);
     const price = Math.round(Number(p?.price) * 100) / 100;
     if (!Number.isFinite(price) || price < 0 || price > 10000) throw new Error(`„${name}“: Preis ungültig.`);
-    // Fotos: bis zu 4, das erste ist das Titelbild. Ältere Daten haben nur "image".
+    // Fotos: bis zu 6, das erste ist das Titelbild. Ältere Daten haben nur "image".
     const rawImages = Array.isArray(p?.images) ? p.images : p?.image ? [p.image] : [];
     const images = [...new Set(rawImages.map((u) => String(u ?? "")).filter(isImageUrl))].slice(0, MAX_IMAGES);
     const image = images[0] || null;
