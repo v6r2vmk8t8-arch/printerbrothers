@@ -115,7 +115,7 @@ main{padding:20px 0 calc(140px + var(--badge-space))}
 .photo-row{display:flex;gap:8px;justify-content:space-between;align-items:center;margin-bottom:16px;min-height:24px}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .switch{display:flex;align-items:center;gap:10px;margin:4px 0 18px;cursor:pointer;user-select:none}
-.switch input{width:22px;height:22px;accent-color:var(--filament)}
+.switch input{flex:none;width:22px;height:22px;accent-color:var(--filament)}
 .sheet-foot{display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap}
 .sheet-foot .right{display:flex;gap:10px;margin-left:auto}
 
@@ -362,6 +362,7 @@ details.fgroup .list{margin-top:8px}
     </div>
   </div>
   <label class="switch" style="margin-bottom:8px"><input type="checkbox" id="gTrans"> Transluzent (durchscheinend)</label>
+  <label class="switch" style="margin-bottom:8px"><input type="checkbox" id="gLack"> Lack – erscheint im Shop im eigenen Feld „Lack“ (+1,50 € pro Produkt)</label>
   <label class="switch"><input type="checkbox" id="gAvail" checked> Vorrätig – im Shop wählbar</label>
 
   <p class="error" id="filSheetError" hidden></p>
@@ -958,6 +959,7 @@ details.fgroup .list{margin-top:8px}
         '<div class="thumb">' + swatchHTML(f) + '</div>' +
         '<div class="meta"><b></b><div class="sub"><span class="mono">' + f.hex + '</span>' +
           (f.translucent ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">transluzent</span>' : '') +
+          (f.lack ? '<span class="tag" style="color:var(--filament);border-color:var(--filament-line);background:var(--filament-soft)">Lack</span>' : '') +
           (f.available === false ? '<span class="tag">nicht vorrätig</span>' : '') +
         '</div></div>' +
         '<div class="item-actions">' +
@@ -1019,12 +1021,13 @@ details.fgroup .list{margin-top:8px}
 
   function openFilSheet(i){
     filEditIndex = i;
-    var f = i >= 0 ? filaments[i] : { name:'', hex:'#FF7A2F', translucent:false, available:true };
+    var f = i >= 0 ? filaments[i] : { name:'', hex:'#FF7A2F', translucent:false, lack:false, available:true };
     $('filSheetTitle').textContent = i >= 0 ? 'Filament bearbeiten' : 'Neues Filament';
     $('gName').value = f.name;
     $('gHex').value = f.hex;
     $('gColor').value = f.hex.toLowerCase();
     $('gTrans').checked = !!f.translucent;
+    $('gLack').checked = !!f.lack;
     $('gAvail').checked = f.available !== false;
     $('filDeleteBtn').hidden = i < 0;
     $('filSheetError').hidden = true;
@@ -1054,7 +1057,7 @@ details.fgroup .list{margin-top:8px}
     if(!name){ err.textContent = 'Bitte einen Namen eingeben.'; err.hidden = false; $('gName').focus(); return; }
     if(!hex){ err.textContent = 'Bitte einen gültigen Farbcode eingeben, z. B. #FF7A2F'; err.hidden = false; $('gHex').focus(); return; }
     var old = filEditIndex >= 0 ? filaments[filEditIndex] : {};
-    var item = { id: old.id, name: name, hex: hex, translucent: $('gTrans').checked, available: $('gAvail').checked };
+    var item = { id: old.id, name: name, hex: hex, translucent: $('gTrans').checked, lack: $('gLack').checked, available: $('gAvail').checked };
     var next = filaments.slice();
     if(filEditIndex >= 0) next[filEditIndex] = item; else next.push(item);
     var btn = $('filSaveBtn');

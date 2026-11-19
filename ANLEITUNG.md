@@ -29,6 +29,16 @@ so steht es dann im Warenkorb.
 3. Ist eine Rolle leer: Filament antippen → „Vorrätig“ ausschalten. Dann ist die Farbe
    im Shop nicht mehr wählbar, bleibt aber gespeichert.
 4. ▲▼ ändert die Reihenfolge im Warenkorb
+5. Häkchen „Lack“: Diese Farbe ist ein Lack. Sie erscheint im Warenkorb nicht bei den
+   normalen Farben, sondern im eigenen Feld „Lack“ (Standard: „Ohne Lack“).
+
+## Aufpreise im Warenkorb
+- **Lack:** +1,50 € pro Stück, wenn ein Lack gewählt ist.
+- **Mehrfarbig:** Die ersten 2 unterschiedlichen Farben sind im Grundpreis enthalten,
+  ab der 3. unterschiedlichen Farbe +0,50 € je Farbe (3 Farben +0,50 €, 4 Farben +1,00 €).
+  Gleiche Farben auf mehreren Teilen zählen nur einmal.
+Der Warenkorb zeigt Einzelpreis, Grundpreis mit den Aufpreisen und die Summe.
+Die Beträge stehen oben im Shop-Script (`LACK_SURCHARGE`, `COLOR_SURCHARGE`, `FREE_COLORS`).
 
 ## Passwort ändern
 Netlify → Site configuration → Environment variables → `ADMIN_PASSWORD` bearbeiten

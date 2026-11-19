@@ -113,7 +113,7 @@ export function sanitizeFilaments(input) {
     seen.add(id);
     let hex = str(f?.hex, 7).toUpperCase();
     if (!/^#[0-9A-F]{6}$/.test(hex)) throw new Error(`„${name}“: Farbcode ungültig.`);
-    return { id, name, hex, translucent: f?.translucent === true, available: f?.available !== false };
+    return { id, name, hex, translucent: f?.translucent === true, lack: f?.lack === true, available: f?.available !== false };
   });
 }
 
