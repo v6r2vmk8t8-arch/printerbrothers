@@ -26,8 +26,8 @@ set_circular_segments(128)
 # ---------------------------------------------------------------- Bausteinmaße (Systemstandard)
 PITCH = 8.0        # Noppenraster
 GAP = 0.1          # Spiel je Seite -> 7.8 mm Grundmaß
-STUD_D = 4.90      # Noppen-Ø (Nennmaß 4.8; Testdrucke: 4.85 zu locker, 4.95 etwas zu breit)
-STUD_H = 2.15      # Noppenhöhe (Nennmaß 1.7; +0.45 nach Testdrucken für mehr Halt)
+STUD_D = 4.95      # Noppen-Ø (Nennmaß 4.8; stehend gedruckt passt 4.95 – 4.90 war eine Spur zu schmal)
+STUD_H = 2.25      # Noppenhöhe (Nennmaß 1.7; nach Testdrucken +0.55 für mehr Halt)
 STUD_CHAMFER = 0.25
 
 # ---------------------------------------------------------------- Ring
@@ -42,7 +42,7 @@ STRIPES = 36       # Streifen rundum
 STRIPE_W = 0.8
 STRIPE_D = 0.4
 
-BAR_HOLE_D = 3.3   # Loch für Stangen (Nennmaß 3.2; gedruckte Löcher werden etwas kleiner)
+BAR_HOLE_D = 3.35  # Loch für Stangen (Nennmaß 3.2; gedruckte Löcher werden kleiner – nach Testdruck +0.05)
 BAR_DEPTH_INTO_RING = 0.4   # Loch reicht so weit unter die Sockelunterkante
 
 VARIANTS = {       # Name: (Noppen in X, Noppen in Y, Reifbreite[, hohle Noppe])
