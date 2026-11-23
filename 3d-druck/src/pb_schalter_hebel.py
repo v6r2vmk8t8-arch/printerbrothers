@@ -27,9 +27,9 @@ OUT = ROOT / "3d-druck/schalter-hebel"
 
 # ---------------------------------------------------------------- Maße
 # Proportionen wie der Block-Hebel im Spiel (1 Pixel = PX mm): Sockel 6 × 8 × 3 Pixel, Stab 2 × 2 × 10 Pixel, 45° gekippt.
-PX = 85.0 / 8
-BASE_W, BASE_H, DEPTH = 6 * PX, 8 * PX, 3 * PX      # 64 × 85 × 32 mm – umschließt den ganzen Schalter
-INNER_W, INNER_H = 58.0, 74.0  # Hohlraum: Wippe bis 58 mm breit, Wände sitzen auf dem 80er-Rahmen
+PX = 88.0 / 8                   # Rahmen 87 × 87 mm (Efapel), Wippe 57 × 57 mm – gemessen von den Fotos
+BASE_W, BASE_H, DEPTH = 6 * PX, 8 * PX, 3 * PX      # 66 × 88 × 33 mm – sitzt ganz auf dem Rahmen
+INNER_W, INNER_H = 60.5, 77.0  # Hohlraum: Wippe 57 mm + Spiel
 FRONT = 3.0                    # Stärke der Vorderwand
 ZA = DEPTH - FRONT - 4.5 - 0.7  # Hebelachse knapp hinter der Vorderwand (Stab kommt aus der Mitte)
 STICK = 2 * PX                 # Stab 21 × 21 mm
