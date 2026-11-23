@@ -686,6 +686,7 @@ header.nav{
 .co-total{ font-weight:700; font-size:1.05rem; }
 .co-vat{ color:var(--ink-soft); font-size:0.78rem; justify-content:flex-end !important; }
 .co-personal{ font-size:0.8rem; color:var(--pla); margin:0; }
+.co-accept[hidden]{ display:none; }
 .co-accept{ display:flex; gap:0.6rem; font-size:0.82rem; color:var(--ink-soft); align-items:flex-start; }
 .co-accept input{ accent-color:var(--filament); margin-top:0.2rem; }
 .co-accept a, .co-done a{ color:var(--filament); }
@@ -1843,7 +1844,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
   var SETTINGS = null;   // Versand/Zahlung vom Server
   if(window.fetch && location.protocol !== 'file:'){
     fetch('/api/settings', { cache:'no-store' }).then(function(r){ return r.ok ? r.json() : null; })
-      .then(function(st){ if(st && st.shipping) SETTINGS = st; }).catch(function(){});
+      .then(function(st){ if(st && st.shipping){ SETTINGS = st; applyShopMode(); } }).catch(function(){});
   }
 
   function colorPickerHTML(line, li){
@@ -1999,6 +2000,11 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
     });
     renderChoices();
     updateSums();
+    var inq = inquiry();
+    checkoutView.querySelector('h3').textContent = inq ? 'Unverbindliche Anfrage' : 'Kasse';
+    document.getElementById('coPayment').closest('fieldset').hidden = inq;
+    coForm.querySelector('.co-accept').hidden = inq;
+    document.getElementById('coSubmit').textContent = inq ? 'Unverbindlich anfragen' : 'Zahlungspflichtig bestellen';
     document.getElementById('coError').hidden = true;
     document.getElementById('coPersonal').hidden = !lines.some(function(l){ return l.note || l.logo; });
     cartItemsEl.hidden = true;
@@ -2006,6 +2012,19 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
     cartFooterEl.hidden = true;
     checkoutView.hidden = false;
     cartDrawer.scrollTop = 0;
+  }
+
+  /* Shop geschlossen -> „Anfrage“-Modus: unverbindlich anfragen, ohne Zahlung (z. B. Freunde & Familie) */
+  function inquiry(){ return SETTINGS && SETTINGS.open === false; }
+  function applyShopMode(){
+    if(!inquiry()) return;
+    var chip = document.querySelector('#shop .status-chip');
+    if(chip) chip.textContent = 'Derzeit nur auf Anfrage – unverbindlich';
+    var aside = document.querySelector('#shop .section-aside p');
+    if(aside) aside.textContent = 'Legt eure Lieblingsstücke in den Warenkorb und schickt uns eine unverbindliche Anfrage – wir melden uns persönlich bei euch.';
+    var fn = document.querySelector('#shop .foot-note');
+    if(fn) fn.innerHTML = 'Derzeit kein Online-Verkauf: Anfragen sind unverbindlich, wir melden uns persönlich. Preise sind Richtwerte.';
+    var cb = document.getElementById('cartCheckout'); if(cb) cb.textContent = 'Weiter zur Anfrage';
   }
 
   /* ---------- Kasse: Lieferung, Zahlung, Summen ---------- */
@@ -2084,7 +2103,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
     });
     var c = o.customer;
     var DEL = { AT:'Versand Österreich', DE:'Versand Deutschland', pickup:'Abholung' };
-    var PAY = { transfer:'Überweisung', paypal:'PayPal', cash:'Bar bei Abholung' };
+    var PAY = { transfer:'Überweisung', paypal:'PayPal', cash:'Bar bei Abholung', anfrage:'– (unverbindliche Anfrage)' };
     return L.join('\n') + '\n\nZwischensumme ' + formatPrice(o.subtotal) + ' · Versand ' + formatPrice(o.shipping) +
       ' · Gesamt ' + formatPrice(o.total) + ' (inkl. ' + o.vatRate + ' % USt ' + formatPrice(o.vat) + ')' +
       '\nLieferung: ' + DEL[o.delivery] + ' · Zahlung: ' + PAY[o.payment] +
@@ -2103,6 +2122,15 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
   }
   function showDone(res){
     var o = res.order, pay = res.pay, html = '<p>Bestellnummer <span class="num">' + esc(o.number) + '</span> · Gesamt <b>' + formatPrice(o.total) + '</b></p>';
+    if(pay.kind === 'anfrage'){
+      html = '<p>Anfrage-Nummer <span class="num">' + esc(o.number) + '</span></p>' +
+        '<p>Danke! Eure Anfrage ist bei uns angekommen. Das ist noch keine Bestellung – wir melden uns persönlich per E-Mail an ' + esc(o.customer.email) + '.</p>';
+      document.getElementById('coDone').className = 'co-done';
+      document.getElementById('coDone').innerHTML = html;
+      doneView.querySelector('h3').textContent = 'Danke für eure Anfrage!';
+      checkoutView.hidden = true; doneView.hidden = false; cartDrawer.scrollTop = 0;
+      return;
+    }
     if(pay.kind === 'transfer'){
       var b = pay.bank || {};
       html += '<p>Bitte überweist den Betrag mit der Bestellnummer als Verwendungszweck:</p><div class="bank">' +
@@ -2130,9 +2158,9 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
     var miss = need.filter(function(n){ var bad = !val(n); coForm.elements[n].classList.toggle('bad', bad); return bad; });
     var msg = !SETTINGS ? 'Versandoptionen fehlen – bitte Seite neu laden.' :
       miss.length ? 'Bitte alle Pflichtfelder ausfüllen.' :
-      !checked('payment') ? 'Bitte eine Zahlungsart wählen.' :
+      (!inquiry() && !checked('payment')) ? 'Bitte eine Zahlungsart wählen.' :
       lines.some(function(l){ return PRODUCTS[l.id].note && !(l.note || '').trim(); }) ? 'Bei einem Stück fehlt noch der Text – bitte im Warenkorb eintragen.' :
-      !coForm.elements.accept.checked ? 'Bitte die AGB akzeptieren.' : '';
+      (!inquiry() && !coForm.elements.accept.checked) ? 'Bitte die AGB akzeptieren.' : '';
     if(msg){ err.textContent = msg; err.hidden = false; return; }
     btn.disabled = true; btn.textContent = 'Wird gesendet …';
     fetch('/api/bestellung', { method:'POST', headers:{ 'content-type':'application/json' }, body: JSON.stringify(orderPayload()) })
@@ -2145,7 +2173,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
         });
       })
       .catch(function(ex){ err.textContent = ex.message || 'Das hat leider nicht geklappt – bitte nochmal versuchen.'; err.hidden = false; })
-      .then(function(){ btn.disabled = false; btn.textContent = 'Zahlungspflichtig bestellen'; });
+      .then(function(){ btn.disabled = false; btn.textContent = inquiry() ? 'Unverbindlich anfragen' : 'Zahlungspflichtig bestellen'; });
   });
   document.getElementById('coDoneClose').addEventListener('click', function(){
     doneView.hidden = true; cartItemsEl.hidden = false; renderCart(); closeCart();

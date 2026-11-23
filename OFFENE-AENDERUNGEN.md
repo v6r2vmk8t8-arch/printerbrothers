@@ -1,5 +1,7 @@
 # Offene Website-Änderungen (warten auf Netlify-Credits)
 
+> 23.11.: Shop startet im **Anfrage-Modus** (Bestellungen aus), Verein in Gründung. Impressum ohne Gewerbe/UID.
+
 **Stand: 17.11.2026 (aktualisiert)** – Netlify-Deploy-Credits sind aufgebraucht, Produktions-Deploys pausiert.
 Neue Credits ab **23.11.2026** → dann alles mit **einem einzigen** Deploy veröffentlichen.
 

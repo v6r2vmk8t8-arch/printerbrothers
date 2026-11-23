@@ -145,7 +145,7 @@ export const SETTINGS_DEFAULT = {
   bank: { holder: "Matthias Habringer", iban: "", bic: "", name: "" },
   paypalMe: "",                      // z. B. "printerbrothers" -> https://paypal.me/printerbrothers
   vatRate: 20,
-  open: true,                        // Bestellungen annehmen
+  open: false,                       // false = Anfrage-Modus (unverbindlich, ohne Zahlung) – erst mit Verein/Gewerbe öffnen
 };
 
 const num = (v, d, max = 1000) => { const n = Math.round(Number(v) * 100) / 100; return Number.isFinite(n) && n >= 0 && n <= max ? n : d; };
@@ -163,7 +163,7 @@ export function sanitizeSettings(s) {
     bank: { holder: str(s?.bank?.holder, 70), iban, bic: str(s?.bank?.bic, 11).toUpperCase().replace(/\s+/g, ""), name: str(s?.bank?.name, 60) },
     paypalMe,
     vatRate: D.vatRate,
-    open: s?.open !== false,
+    open: s?.open === true,
   };
 }
 
@@ -186,7 +186,7 @@ export function publicSettings(s) {
 
 /* ---------- Bestellungen ---------- */
 export const orderStore = () => getStore({ name: "orders", consistency: "strong" });
-export const ORDER_STATUS = ["neu", "bezahlt", "in Arbeit", "versendet", "abgeholt", "storniert"];
+export const ORDER_STATUS = ["anfrage", "neu", "bezahlt", "in Arbeit", "versendet", "abgeholt", "storniert"];
 const EMAIL = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i;
 
 export function newOrderNumber() {
@@ -198,7 +198,8 @@ export function newOrderNumber() {
 
 /* Bestellung prüfen und Preise am Server neu rechnen (der Browser bestimmt keine Preise) */
 export function buildOrder(input, products, settings) {
-  if (!settings.open) throw new Error("Der Shop nimmt gerade keine Bestellungen an.");
+  // Shop geschlossen -> unverbindliche Anfrage (ohne Zahlung/AGB), z. B. für Freunde und Familie
+  const inquiry = !settings.open;
   const byId = new Map(products.filter((p) => p.visible !== false).map((p) => [p.id, p]));
   const rawItems = Array.isArray(input?.items) ? input.items : [];
   if (!rawItems.length) throw new Error("Der Warenkorb ist leer.");
@@ -236,23 +237,26 @@ export function buildOrder(input, products, settings) {
   }
   const pub = publicSettings(settings);
   const payment = String(input?.payment || "");
-  if (!(pub.payments[payment])) throw new Error("Bitte eine Zahlungsart wählen.");
-  if (payment === "cash" && delivery !== "pickup") throw new Error("Barzahlung geht nur bei Abholung.");
-  if (input?.accept !== true) throw new Error("Bitte die AGB akzeptieren.");
+  if (!inquiry) {
+    if (!(pub.payments[payment])) throw new Error("Bitte eine Zahlungsart wählen.");
+    if (payment === "cash" && delivery !== "pickup") throw new Error("Barzahlung geht nur bei Abholung.");
+    if (input?.accept !== true) throw new Error("Bitte die AGB akzeptieren.");
+  }
   const round = (n) => Math.round(n * 100) / 100;
   const subtotal = round(items.reduce((s, i) => s + i.price * i.qty, 0));
   const shipping = delivery === "pickup" || (settings.freeFrom > 0 && subtotal >= settings.freeFrom) ? 0 : settings.shipping[delivery];
   const total = round(subtotal + shipping);
   const vat = round(total - total / (1 + settings.vatRate / 100));
   return {
-    number: newOrderNumber(), createdAt: new Date().toISOString(), status: "neu",
-    items, customer, delivery, payment, message: str(input?.message, 500),
+    number: newOrderNumber(), createdAt: new Date().toISOString(), status: inquiry ? "anfrage" : "neu",
+    items, customer, delivery, payment: inquiry ? "anfrage" : payment, message: str(input?.message, 500),
     subtotal, shipping, total, vat, vatRate: settings.vatRate,
   };
 }
 
 /* Zahlungsinfos für die Bestätigung */
 export function paymentInfo(order, settings) {
+  if (order.status === "anfrage") return { kind: "anfrage", amount: order.total.toFixed(2) };
   const amount = order.total.toFixed(2);
   if (order.payment === "transfer") return { kind: "transfer", bank: settings.bank, reference: order.number, amount };
   if (order.payment === "paypal") return { kind: "paypal", url: `https://paypal.me/${encodeURIComponent(settings.paypalMe)}/${amount}EUR`, amount };

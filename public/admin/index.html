@@ -152,7 +152,7 @@ details.fgroup .list{margin-top:8px}
 .order select,.order textarea{font:inherit;background:var(--plate-2);color:var(--ink);border:1px solid var(--line-strong);border-radius:6px;padding:6px 8px}
 .order textarea{width:100%;min-height:56px}
 .st{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:99px;border:1px solid var(--line-strong);justify-self:end}
-.st-neu{color:#FF7A2F;border-color:rgba(255,122,47,.5)}
+.st-neu,.st-anfrage{color:#FF7A2F;border-color:rgba(255,122,47,.5)}
 .st-bezahlt,.st-in{color:#39FF14;border-color:rgba(57,255,20,.4)}
 .settings{max-width:560px}
 .rev-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
@@ -295,7 +295,8 @@ details.fgroup .list{margin-top:8px}
     <section id="settingsPane" hidden>
       <div class="intro"><div><h1>Einstellungen</h1><p>Versand, Abholung und Zahlung im Shop.</p></div></div>
       <form id="settingsForm" class="settings" novalidate>
-        <label class="switch" style="margin-bottom:14px"><input type="checkbox" id="sOpen"> Shop nimmt Bestellungen an</label>
+        <label class="switch" style="margin-bottom:4px"><input type="checkbox" id="sOpen"> Shop nimmt Bestellungen an</label>
+        <p class="hint" style="margin:0 0 14px">Aus = Anfrage-Modus: Kund:innen schicken nur eine unverbindliche Anfrage (ohne Zahlung).</p>
         <h2 class="files-h">Versand (inkl. USt)</h2>
         <div class="row2">
           <label class="field"><span>Österreich in €</span><input type="text" id="sShipAT" inputmode="decimal"></label>
@@ -947,17 +948,17 @@ details.fgroup .list{margin-top:8px}
 
   /* ---------- Bestellungen ---------- */
   var orders = [], orderFilter = 'offen';
-  var STATUS = ['neu', 'bezahlt', 'in Arbeit', 'versendet', 'abgeholt', 'storniert'];
+  var STATUS = ['anfrage', 'neu', 'bezahlt', 'in Arbeit', 'versendet', 'abgeholt', 'storniert'];
   var DEL = { AT:'Versand AT', DE:'Versand DE', pickup:'Abholung' };
-  var PAY = { transfer:'Überweisung', paypal:'PayPal', cash:'Bar' };
+  var PAY = { transfer:'Überweisung', paypal:'PayPal', cash:'Bar', anfrage:'Anfrage' };
   function refreshOrders(){
     $('ordersInfo').textContent = 'Lädt …';
     return api('orders').then(function(list){ orders = list; renderOrders(); })
       .catch(function(ex){ $('ordersInfo').textContent = ex.message; });
   }
   function renderOrders(){
-    var open = orders.filter(function(o){ return ['neu', 'bezahlt', 'in Arbeit'].indexOf(o.status) >= 0; });
-    var nNew = orders.filter(function(o){ return o.status === 'neu'; }).length;
+    var open = orders.filter(function(o){ return ['anfrage', 'neu', 'bezahlt', 'in Arbeit'].indexOf(o.status) >= 0; });
+    var nNew = orders.filter(function(o){ return o.status === 'neu' || o.status === 'anfrage'; }).length;
     $('ordersNew').hidden = !nNew; $('ordersNew').textContent = nNew;
     var show = orderFilter === 'offen' ? open : orders;
     $('ordersInfo').textContent = orders.length ? (open.length + ' offen · ' + orders.length + ' insgesamt') : 'Noch keine Bestellungen.';
