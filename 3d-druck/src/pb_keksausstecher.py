@@ -9,7 +9,10 @@ Schneide oben) + separater Stempel (Platte mit erhabener Prägung), der genau in
 Ausstecher passt. Anwendung: ausstechen, Ausstecher im Teig lassen, Stempel mit der
 Prägung nach unten hineinlegen, andrücken, Ausstecher abheben.
 
-Druck: beide Teile flach, ohne Support. Der Stempel liegt mit der glatten Rückseite auf
+Griff: kleiner Knauf, extra stehend gedruckt und mit Sekundenkleber-Gel in die
+Zentriermulde auf der Stempel-Rückseite geklebt.
+
+Druck: alle Teile ohne Support. Der Stempel liegt mit der glatten Rückseite auf
 dem Bett, die Prägung zeigt nach oben. Schrift ist deshalb gespiegelt modelliert,
 damit sie auf dem Keks richtig herum steht.
 
@@ -30,7 +33,7 @@ from shapely.ops import unary_union
 ROOT = Path(__file__).resolve().parents[2]
 SRC = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / ".claude/skills/stl-designer/scripts"))
-from stl_tools import export_parts  # noqa: E402
+from stl_tools import export_parts, preview  # noqa: E402
 
 set_circular_segments(128)
 
@@ -47,6 +50,15 @@ FLANGE_H = 2.0      # Griffrand: Höhe
 GAP = 0.8           # Spiel Stempel ↔ Innenwand des Ausstechers
 PLATE = 2.0         # Plattenstärke
 RELIEF = 2.0        # Höhe der Prägung (erhaben)
+
+# Griff (extra gedruckt, auf die Stempel-Rückseite geklebt)
+GRIP_FOOT_D = 15.6  # Fuß-Ø (sitzt in einer Zentriermulde der Stempel-Rückseite)
+GRIP_FOOT_H = 1.6   # Fußhöhe
+GRIP_NECK_D = 9.0   # Hals-Ø
+GRIP_TOP_D = 15.0   # Knauf-Ø oben
+GRIP_H = 15.0       # Gesamthöhe
+POCKET_D = 16.0     # Zentriermulde im Stempel (0,2 mm Spiel je Seite)
+POCKET_T = 0.6      # Tiefe der Mulde (3 Schichten)
 
 # Zagreb-Herz
 HEART_W = 57.0      # Keksbreite (= Innenmaß Ausstecher) → Höhe ≈ 46 mm
@@ -106,7 +118,22 @@ def cutter(inner: Polygon) -> Manifold:
 def stamp(inner: Polygon, relief) -> Manifold:
     plate = to_cs(inner.buffer(-GAP, 64)).extrude(PLATE)
     rel = to_cs(relief).extrude(RELIEF + 0.05).translate((0, 0, PLATE - 0.05))
-    return plate + rel
+    # Zentriermulde für den Griff auf der Rückseite (= Unterseite beim Druck)
+    c = inner.centroid
+    pocket = CrossSection.circle(POCKET_D / 2).extrude(POCKET_T).translate((c.x, c.y, -0.01))
+    return plate + rel - pocket
+
+
+def grip() -> Manifold:
+    """Kleiner Pilz-Knauf, stehend gedruckt (Fuß unten), alle Übergänge 45° → ohne Support."""
+    rf, rn, rt = GRIP_FOOT_D / 2, GRIP_NECK_D / 2, GRIP_TOP_D / 2
+    z1 = GRIP_FOOT_H
+    z2 = z1 + (rf - rn)                 # 45° vom Fuß zum Hals
+    z4 = GRIP_H - 2.0                   # Beginn Knaufrand
+    z3 = z4 - (rt - rn)                 # 45° vom Hals zum Knauf
+    prof = [(0, 0), (rf - 0.4, 0), (rf, 0.4), (rf, z1), (rn, z2), (rn, z3), (rt, z4),
+            (rt, GRIP_H - 0.8), (rt - 0.8, GRIP_H), (0, GRIP_H)]
+    return Manifold.revolve(CrossSection([prof]), 96)
 
 
 # ---------------------------------------------------------------- Schrift (Lobster, OFL)
@@ -258,10 +285,20 @@ def build(name, inner, relief, size):
     w = inner.bounds[2] - inner.bounds[0] + 2 * (WALL + FLANGE_W)
     s = s.translate((w / 2 + 4 + (inner.bounds[2] - inner.bounds[0]) / 2, 0, 0))
     c = c.translate((-w / 2 + 2, 0, 0)); s = s.translate((-w / 2 + 2, 0, 0))
-    for m, n in ((c, "ausstecher"), (s, "stempel")):
+    b = s.bounding_box()
+    g = grip().translate((b[3] + 4 + GRIP_FOOT_D / 2, b[4] - GRIP_FOOT_D / 2, 0))
+    # Zusammengebaut (Anwendung): Stempel umgedreht im Ausstecher, Griff obendrauf
+    cen = inner.centroid
+    flip = stamp(inner, relief).mirror((0, 0, 1)).translate((0, 0, PLATE + RELIEF + 0.5))
+    knob = grip().translate((cen.x, cen.y, PLATE + RELIEF + 0.5 + POCKET_T))
+    preview({"ausstecher": to_tm(cutter(inner).mirror((0, 0, 1)).translate((0, 0, H_CUT))),
+             "stempel": to_tm(flip), "griff": to_tm(knob)}, OUT / f"{name}_{size}mm_montiert.png",
+            colors={"ausstecher": "#2e9e4f", "stempel": "#e6e6e6", "griff": "#ff7a2f"})
+    for m, n in ((c, "ausstecher"), (s, "stempel"), (g, "griff")):
         assert len(m.decompose()) == 1, f"{n} besteht aus mehreren Teilen"
-    export_parts({"ausstecher": to_tm(c), "stempel": to_tm(s)}, OUT / f"{name}_{size}mm")
-    print(f"{name}: Ausstecher {c.volume() / 1000 * 1.24:.1f} g, Stempel {s.volume() / 1000 * 1.24:.1f} g (PLA)")
+    export_parts({"ausstecher": to_tm(c), "stempel": to_tm(s), "griff": to_tm(g)}, OUT / f"{name}_{size}mm")
+    print(f"{name}: Ausstecher {c.volume() / 1000 * 1.24:.1f} g, Stempel {s.volume() / 1000 * 1.24:.1f} g, "
+          f"Griff {g.volume() / 1000 * 1.24:.1f} g (PLA)")
 
 
 if __name__ == "__main__":
