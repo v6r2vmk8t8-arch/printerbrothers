@@ -1,6 +1,7 @@
 """Keksausstecher mit Präge-Stempel (Kundenauftrag Dani).
 
-  1. Zagreb-Herz:   Herzumriss als Ausstecher, die innere weiße Linie als Prägung.
+  1. Zagreb-Herz:   Herzumriss als Ausstecher, die innere weiße Linie (oben offen,
+                    mit Spiralen) als Prägung.
   2. Sretan Božić:  runder Ausstecher, Stempel mit Schriftzug + Volkskunst-Ornamenten.
 
 Aufbau wie das Referenz-Set (set.3mf): Ausstecher (offener Rahmen, Griffrand unten,
@@ -22,7 +23,7 @@ import trimesh
 from fontTools.ttLib import TTFont
 from fontTools.pens.recordingPen import RecordingPen
 from manifold3d import CrossSection, FillRule, JoinType, Manifold, set_circular_segments
-from shapely import affinity
+from shapely import affinity, wkt
 from shapely.geometry import LineString, Point, Polygon, MultiPolygon
 from shapely.ops import unary_union
 
@@ -49,8 +50,7 @@ RELIEF = 2.0        # Höhe der Prägung (erhaben)
 
 # Zagreb-Herz
 HEART_W = 57.0      # Keksbreite (= Innenmaß Ausstecher) → Höhe ≈ 46 mm
-HEART_LINE_IN = 3.6 # Abstand der Prägelinie vom Keksrand (Mitte der Linie)
-HEART_LINE_W = 1.4  # Strichstärke der Prägelinie
+HEART_LINE_W = 1.5  # Strichstärke der Prägelinie (im Bild ≈ 1,3 mm)
 
 # Sretan Božić
 ROUND_D = 57.0      # Keksdurchmesser (= Innenmaß Ausstecher)
@@ -220,14 +220,12 @@ def sprig():
 # ---------------------------------------------------------------- Modelle
 def zagreb_herz():
     pts = np.loadtxt(SRC / "data/zagreb_herz_umriss.csv", delimiter=",")
-    h = Polygon(pts * HEART_W)
-    h = smooth(h.buffer(0), 1.2)
-    k = HEART_W / (h.bounds[2] - h.bounds[0])
-    inner = affinity.scale(h, k, k, origin=(0, 0))
-    # Prägelinie: weiße Innenlinie = Herz versetzt nach innen
-    a = inner.buffer(-(HEART_LINE_IN - HEART_LINE_W / 2), 64)
-    b = inner.buffer(-(HEART_LINE_IN + HEART_LINE_W / 2), 64)
-    line = smooth(a, 0.8).difference(smooth(b, 0.8))
+    inner = smooth(Polygon(pts * HEART_W).buffer(0), 1.2)
+    # Prägelinie: weiße Innenlinie aus dem Kundenbild – läuft an den Seiten und unten
+    # mit dem Rand mit, ist oben in der Mitte offen und rollt sich beidseitig zu Spiralen ein
+    line = wkt.loads((SRC / "data/zagreb_herz_linie.wkt").read_text())
+    line = affinity.scale(line, HEART_W, HEART_W, origin=(0, 0))
+    line = smooth(line, 0.3).buffer((HEART_LINE_W - 1.31) / 2, 32)
     return inner, line
 
 
