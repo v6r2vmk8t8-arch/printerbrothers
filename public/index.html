@@ -653,6 +653,9 @@ header.nav{
 .rev-list p{ margin:0.3rem 0 0; overflow-wrap:anywhere; }
 .rev-list .reply{ margin-top:0.4rem; padding-left:0.8rem; border-left:2px solid var(--filament-line); color:var(--ink-soft); }
 .rev-form{ display:flex; flex-direction:column; gap:0.7rem; border-top:1px solid var(--line); padding-top:1rem; }
+.rev-form[hidden]{ display:none; }
+.rev-done{ display:flex; flex-direction:column; gap:1rem; border-top:1px solid var(--line); padding-top:1rem; }
+.rev-done[hidden]{ display:none; }
 .rev-form h3{ font-size:0.95rem; text-transform:uppercase; }
 .rev-stars{ border:0; margin:0; padding:0; display:flex; flex-direction:row-reverse; justify-content:flex-end; gap:0.15rem; }
 .rev-stars legend{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
@@ -1391,8 +1394,18 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
     <p class="co-error" id="revError" role="alert" hidden></p>
     <button class="btn btn-primary" type="submit" id="revSubmit">Bewertung senden</button>
   </form>
-  <p class="rev-thanks" id="revThanks" hidden>Danke! Wir schauen uns eure Bewertung an und schalten sie dann frei.</p>
+  <div class="rev-done" id="revThanks" hidden>
+    <p class="rev-thanks">Danke! Wir schauen uns eure Bewertung an und schalten sie dann frei.</p>
+    <button class="btn btn-primary" type="button" id="revDoneClose">Schließen</button>
+  </div>
 </dialog>
+
+<!-- Benachrichtigung über neue Bewertungen (Netlify Forms); die Bewertung selbst ist da schon gespeichert -->
+<form name="bewertung" data-netlify="true" netlify-honeypot="bot-field" hidden>
+  <input name="produkt"><input name="sterne"><input name="name"><input name="verifiziert">
+  <textarea name="bewertung"></textarea>
+  <input name="bot-field">
+</form>
 
 <!-- Benachrichtigung über neue Bestellungen (Netlify Forms, mit Logo-Dateien) -->
 <form name="bestellung" data-netlify="true" netlify-honeypot="bot-field" enctype="multipart/form-data" hidden>
@@ -1766,6 +1779,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
   });
   if(revDialog){
     document.getElementById('revClose').addEventListener('click', function(){ revDialog.close(); });
+    document.getElementById('revDoneClose').addEventListener('click', function(){ revDialog.close(); });
     revDialog.addEventListener('click', function(e){ if(e.target === revDialog) revDialog.close(); });
     revForm.addEventListener('submit', function(e){
       e.preventDefault();
@@ -1778,7 +1792,15 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
       btn.disabled = true; err.hidden = true;
       fetch('/api/bewertungen', { method:'POST', headers:{ 'content-type':'application/json' }, body: JSON.stringify(data) })
         .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(b){ if(!r.ok || !b.ok) throw new Error(b.error || 'Fehler ' + r.status); return b; }); })
-        .then(function(){ revForm.hidden = true; document.getElementById('revThanks').hidden = false; })
+        .then(function(b){
+          revForm.hidden = true; document.getElementById('revThanks').hidden = false;
+          var p = PRODUCTS[data.productId] || {}, fd = new FormData();
+          fd.append('form-name', 'bewertung'); fd.append('produkt', p.name || data.productId);
+          fd.append('sterne', data.stars + ' / 5'); fd.append('name', data.name);
+          fd.append('verifiziert', b.verified ? 'ja (' + data.order + ')' : 'nein');
+          fd.append('bewertung', data.text + '\n\nFreigeben im Admin unter „Bewertungen“.');
+          fetch('/', { method:'POST', body:fd }).catch(function(){});
+        })
         .catch(function(ex){ err.textContent = ex.message; err.hidden = false; })
         .then(function(){ btn.disabled = false; });
     });
