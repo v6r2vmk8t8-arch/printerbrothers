@@ -103,8 +103,26 @@ export function sanitizeList(input) {
     const linkLabel = linkUrl ? str(p?.linkLabel, 40) || "Anleitung (PDF)" : "";
     // Optional: Firmen schicken ihr eigenes Logo mit (statt des Printer-Brothers-Logos)
     const logo = p?.logo === true;
-    return { id, name, desc: str(p?.desc, 240), price, image, images, icon: image ? null : icon, parts, note, noteLabel, logo, options, linkLabel, linkUrl, visible: p?.visible !== false };
+    // Optional: welche Filamente wählbar sind (leer = alle vorrätigen).
+    // filaments = erlaubte Filament-IDs, materials = erlaubte Filamentarten (z. B. "PETG")
+    const filaments = [...new Set((Array.isArray(p?.filaments) ? p.filaments : [])
+      .map((v) => str(v, 40).toLowerCase()).filter((v) => /^[a-z0-9-]+$/.test(v)))].slice(0, 40);
+    const materials = [...new Set((Array.isArray(p?.materials) ? p.materials : []).map((v) => str(v, 20)).filter(Boolean))].slice(0, 10);
+    return { id, name, desc: str(p?.desc, 240), price, image, images, icon: image ? null : icon, parts, note, noteLabel, logo, options, linkLabel, linkUrl, filaments, materials, visible: p?.visible !== false };
   });
+}
+
+export const DEFAULT_MATERIAL = "PLA";
+export const materialOf = (f) => (f && f.material) || DEFAULT_MATERIAL;
+/* So steht die Farbe in der Bestellung, z. B. "Rot · PETG" */
+export const filamentLabel = (f) => `${f.name} · ${materialOf(f)}`;
+
+/* Filamente, die bei einem Produkt wählbar sind (nur vorrätige) */
+export function filamentsFor(p, filaments) {
+  const ids = p?.filaments || [], mats = p?.materials || [];
+  return filaments.filter((f) => f.available !== false
+    && (!ids.length || ids.includes(f.id))
+    && (!mats.length || mats.includes(materialOf(f))));
 }
 
 export function sanitizeFilaments(input) {
@@ -119,7 +137,8 @@ export function sanitizeFilaments(input) {
     seen.add(id);
     let hex = str(f?.hex, 7).toUpperCase();
     if (!/^#[0-9A-F]{6}$/.test(hex)) throw new Error(`„${name}“: Farbcode ungültig.`);
-    return { id, name, hex, translucent: f?.translucent === true, available: f?.available !== false };
+    const material = str(f?.material, 20) || DEFAULT_MATERIAL;
+    return { id, name, hex, material, translucent: f?.translucent === true, available: f?.available !== false };
   });
 }
 
@@ -197,7 +216,7 @@ export function newOrderNumber() {
 }
 
 /* Bestellung prüfen und Preise am Server neu rechnen (der Browser bestimmt keine Preise) */
-export function buildOrder(input, products, settings) {
+export function buildOrder(input, products, settings, filaments = null) {
   // Shop geschlossen -> unverbindliche Anfrage (ohne Zahlung/AGB), z. B. für Freunde und Familie
   const inquiry = !settings.open;
   const byId = new Map(products.filter((p) => p.visible !== false).map((p) => [p.id, p]));
@@ -209,7 +228,12 @@ export function buildOrder(input, products, settings) {
     if (!p) throw new Error("Ein Produkt im Warenkorb gibt es nicht mehr – bitte Seite neu laden.");
     const qty = Math.floor(Number(it?.qty));
     if (!(qty >= 1 && qty <= 99)) throw new Error(`„${p.name}“: Menge ungültig.`);
-    const colors = (Array.isArray(it?.colors) ? it.colors : []).slice(0, MAX_COLORS).map((c) => str(c, 30));
+    const colors = (Array.isArray(it?.colors) ? it.colors : []).slice(0, MAX_COLORS).map((c) => str(c, 60));
+    // Hat das Produkt eine Filament-Auswahl, dürfen nur diese Filamente bestellt werden
+    if (filaments && (p.filaments?.length || p.materials?.length)) {
+      const ok = new Set(filamentsFor(p, filaments).flatMap((f) => [filamentLabel(f), f.name]));
+      if (colors.some((c) => c && !ok.has(c))) throw new Error(`„${p.name}“: Diese Farbe gibt es für das Produkt nicht – bitte Seite neu laden.`);
+    }
     const opts = (p.options || []).map((o, i) => {
       const v = str(it?.opts?.[i], 30);
       if (!o.values.includes(v)) throw new Error(`„${p.name}“: ${o.name} ungültig.`);
