@@ -1,5 +1,5 @@
 // Öffentlich: Bestellung aufgeben. Preise und Versand rechnet der Server selbst nach.
-import { buildOrder, json, loadProducts, loadSettings, orderStore, paymentInfo } from "../lib/shop.mjs";
+import { buildOrder, json, loadFilaments, loadProducts, loadSettings, orderStore, paymentInfo } from "../lib/shop.mjs";
 
 export default async (req) => {
   if (req.method !== "POST") return json({ error: "Nur POST." }, 405);
@@ -9,8 +9,8 @@ export default async (req) => {
   try { input = JSON.parse(raw); } catch { return json({ error: "Ungültige Daten." }, 400); }
   if (input?.website) return json({ ok: true, number: "PB-SPAM" }); // Honigtopf-Feld: Bots
   try {
-    const [products, settings] = await Promise.all([loadProducts(), loadSettings()]);
-    const order = buildOrder(input, products, settings);
+    const [products, settings, filaments] = await Promise.all([loadProducts(), loadSettings(), loadFilaments()]);
+    const order = buildOrder(input, products, settings, filaments);
     await orderStore().setJSON("o/" + order.number + ".json", order);
     return json({ ok: true, order, pay: paymentInfo(order, settings) });
   } catch (e) {

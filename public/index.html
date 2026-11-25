@@ -1584,21 +1584,37 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
     return null;
   }
   function partsOf(p){ return p && p.parts && p.parts.length ? p.parts : ['']; }
+  function matOf(f){ return (f && f.material) || 'PLA'; }
+  /* Filamente, die bei diesem Produkt wählbar sind (im Admin festgelegt; leer = alle) */
+  function filsFor(p){
+    var ids = (p && p.filaments) || [], mats = (p && p.materials) || [];
+    return FILAMENTS.filter(function(f){
+      return (!ids.length || ids.indexOf(f.id) >= 0) && (!mats.length || mats.indexOf(matOf(f)) >= 0);
+    });
+  }
+  function allowed(p, fid){ return filsFor(p).some(function(f){ return f.id === fid; }); }
+  /* Filamentart nur anzeigen, wenn es überhaupt mehrere Arten gibt */
+  function manyMats(){
+    for(var i = 1; i < FILAMENTS.length; i++) if(matOf(FILAMENTS[i]) !== matOf(FILAMENTS[0])) return true;
+    return false;
+  }
+  function filName(f){ return f.name + (manyMats() ? ' · ' + matOf(f) : ''); }
   function partLabel(p, i){
     var parts = partsOf(p);
     return parts[i] || (parts.length > 1 ? 'Farbe ' + (i + 1) : 'Farbe');
   }
   function defaultColors(p){
-    return partsOf(p).map(function(_, i){ return FILAMENTS.length ? FILAMENTS[i % FILAMENTS.length].id : null; });
+    var fs = filsFor(p);
+    return partsOf(p).map(function(_, i){ return fs.length ? fs[i % fs.length].id : null; });
   }
   function swStyle(f){ return '--c:' + esc(f.hex); }
   function swClass(f){ return f.translucent ? ' clear' : ''; }
   function colorSummary(line){
     var p = PRODUCTS[line.id];
-    if(!FILAMENTS.length) return '';
+    if(!filsFor(p).length) return '';
     return line.colors.map(function(fid, i){
       var f = filById(fid);
-      var name = f ? f.name : '–';
+      var name = f ? filName(f) : '–';
       return partsOf(p).length > 1 ? partLabel(p, i) + ': ' + name : name;
     }).join(' · ');
   }
@@ -1625,7 +1641,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
         return (typeof v === 'number' && v >= 0 && v < o.values.length) ? v : 0;
       });
       var def = defaultColors(p);
-      l.colors = def.map(function(d, i){ return filById(l.colors[i]) ? l.colors[i] : d; });
+      l.colors = def.map(function(d, i){ return allowed(p, l.colors[i]) ? l.colors[i] : d; });
       var k = keyOf(l);
       if(byKey[k]) byKey[k].qty += l.qty;
       else { byKey[k] = l; out.push(l); }
@@ -1652,13 +1668,15 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
     return '<svg viewBox="' + vb + '" aria-hidden="true"><use href="#' + icon + '"></use></svg>';
   }
   function cardColorsHTML(p){
-    if(!FILAMENTS.length) return '';
+    var fs = filsFor(p);
+    if(!fs.length) return '';
     var n = partsOf(p).length;
+    var mats = (p.materials || []).length ? ' · ' + p.materials.join(', ') : '';
     return '<div class="product-colors">' +
-      '<span class="dots" aria-hidden="true">' + FILAMENTS.slice(0, 8).map(function(f){
+      '<span class="dots" aria-hidden="true">' + fs.slice(0, 8).map(function(f){
         return '<i class="swatch' + swClass(f) + '" style="' + swStyle(f) + '"></i>';
       }).join('') + '</span>' +
-      '<span>' + (n > 1 ? n + ' Farben wählbar' : 'Farbe wählbar') + '</span>' +
+      '<span>' + (fs.length === 1 ? esc(filName(fs[0])) : (n > 1 ? n + ' Farben wählbar' : 'Farbe wählbar') + esc(mats)) + '</span>' +
     '</div>';
   }
 
@@ -1671,7 +1689,8 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
       if(!p || !p.id) return;
       next[p.id] = { name:p.name, price:Number(p.price) || 0, image:imagesOf(p)[0] || null, icon:p.icon || null, parts: Array.isArray(p.parts) && p.parts.length ? p.parts : [''],
         note: p.note === true, noteLabel: p.noteLabel || 'Dein Text', logo: p.logo === true,
-        options: (Array.isArray(p.options) ? p.options : []).filter(function(o){ return o && o.name && Array.isArray(o.values) && o.values.length; }) };
+        options: (Array.isArray(p.options) ? p.options : []).filter(function(o){ return o && o.name && Array.isArray(o.values) && o.values.length; }),
+        filaments: Array.isArray(p.filaments) ? p.filaments : [], materials: Array.isArray(p.materials) ? p.materials : [] };
       var el = document.createElement('article');
       el.className = 'product reveal';
       el.style.setProperty('--i', i % 3);
@@ -1871,17 +1890,18 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
 
   function colorPickerHTML(line, li){
     var p = PRODUCTS[line.id];
-    if(!FILAMENTS.length) return '';
+    var fs = filsFor(p);
+    if(!fs.length) return '';
     return '<div class="cart-colors">' + partsOf(p).map(function(_, slot){
       var sel = filById(line.colors[slot]);
       var label = esc(partLabel(p, slot));
       return '<div class="color-slot">' +
-        '<div class="color-slot-head"><span>' + label + '</span><b>' + esc(sel ? sel.name : '') + '</b></div>' +
+        '<div class="color-slot-head"><span>' + label + '</span><b>' + esc(sel ? filName(sel) : '') + '</b></div>' +
         '<div class="swatches" role="radiogroup" aria-label="' + label + ' für ' + esc(p.name) + '">' +
-          FILAMENTS.map(function(f){
+          fs.map(function(f){
             var on = sel && f.id === sel.id;
             return '<button type="button" class="sw' + swClass(f) + '" style="' + swStyle(f) + '" role="radio"' +
-              ' aria-checked="' + on + '" tabindex="' + (on ? 0 : -1) + '" aria-label="' + esc(f.name) + '" title="' + esc(f.name) + '"' +
+              ' aria-checked="' + on + '" tabindex="' + (on ? 0 : -1) + '" aria-label="' + esc(filName(f)) + '" title="' + esc(filName(f)) + '"' +
               ' data-action="color" data-line="' + li + '" data-slot="' + slot + '" data-fil="' + esc(f.id) + '"></button>';
           }).join('') +
         '</div>' +
@@ -1973,7 +1993,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
      Kombination, werden beide zusammengelegt. Fokus bleibt auf dem Farbfeld. */
   function setColor(li, slot, fid){
     var line = lines[li];
-    if(!line || !filById(fid)) return;
+    if(!line || !allowed(PRODUCTS[line.id], fid)) return;
     line.colors[slot] = fid;
     renderCart();
     var idx = lines.indexOf(line);
@@ -2105,7 +2125,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
       items: lines.map(function(l){
         var p = PRODUCTS[l.id];
         return { id:l.id, qty:l.qty,
-          colors: l.colors.map(function(fid){ var f = filById(fid); return f ? f.name : ''; }),
+          colors: l.colors.map(function(fid){ var f = filById(fid); return f ? f.name + ' · ' + matOf(f) : ''; }),
           opts: optsOf(p).map(function(o, i){ return o.values[(l.opts || [])[i] || 0]; }),
           note: l.note || '', logo: l.logo ? l.logo.name : '' };
       }),
