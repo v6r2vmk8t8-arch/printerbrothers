@@ -114,6 +114,9 @@ export function sanitizeList(input) {
 
 export const DEFAULT_MATERIAL = "PLA";
 export const materialOf = (f) => (f && f.material) || DEFAULT_MATERIAL;
+/* Lack-Farben (Filamentart „Lack …“) kosten je gewählter Farbe einen Aufpreis pro Stück */
+export const LACK_SURCHARGE = 1.5;
+export const isLack = (f) => /^lack/i.test(materialOf(f));
 /* So steht die Farbe in der Bestellung, z. B. "Rot · PETG" */
 export const filamentLabel = (f) => `${f.name} · ${materialOf(f)}`;
 
@@ -234,6 +237,12 @@ export function buildOrder(input, products, settings, filaments = null) {
       const ok = new Set(filamentsFor(p, filaments).flatMap((f) => [filamentLabel(f), f.name]));
       if (colors.some((c) => c && !ok.has(c))) throw new Error(`„${p.name}“: Diese Farbe gibt es für das Produkt nicht – bitte Seite neu laden.`);
     }
+    // Aufpreis je gewählter Lack-Farbe (Bezeichnung „Name · Art“ hat Vorrang vor dem reinen Namen)
+    const lackCount = colors.filter((c) => {
+      const f = (filaments || []).find((x) => filamentLabel(x) === c) || (filaments || []).find((x) => x.name === c);
+      return f && isLack(f);
+    }).length;
+    const surcharge = Math.round(lackCount * LACK_SURCHARGE * 100) / 100;
     const opts = (p.options || []).map((o, i) => {
       const v = str(it?.opts?.[i], 30);
       if (!o.values.includes(v)) throw new Error(`„${p.name}“: ${o.name} ungültig.`);
@@ -242,7 +251,7 @@ export function buildOrder(input, products, settings, filaments = null) {
     const note = p.note ? str(it?.note, 60) : "";
     if (p.note && !note) throw new Error(`„${p.name}“: ${p.noteLabel} fehlt noch.`);
     const logo = p.logo ? str(it?.logo, 100) : "";
-    return { id: p.id, name: p.name, price: p.price, qty, parts: p.parts, colors, opts, note, noteLabel: p.note ? p.noteLabel : "", logo };
+    return { id: p.id, name: p.name, price: Math.round((p.price + surcharge) * 100) / 100, basePrice: p.price, surcharge, qty, parts: p.parts, colors, opts, note, noteLabel: p.note ? p.noteLabel : "", logo };
   });
   const c = input?.customer || {};
   const delivery = ["AT", "DE", "pickup"].includes(input?.delivery) ? input.delivery : "";

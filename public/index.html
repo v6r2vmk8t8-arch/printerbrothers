@@ -827,6 +827,7 @@ header.nav{
 .product-colors .swatch{ width:14px; height:14px; margin-left:-4px; box-shadow:inset 0 0 0 1px rgba(var(--ink-rgb),0.24), 0 0 0 2px var(--plate); }
 .product-colors .swatch:first-child{ margin-left:0; }
 
+.lack-note{ font-size:0.75rem; opacity:0.7; font-weight:400; }
 .cart-colors{ display:flex; flex-direction:column; gap:0.6rem; margin-top:0.65rem; }
 .color-slot-head{
   display:flex; justify-content:space-between; gap:0.5rem; margin-bottom:0.35rem;
@@ -1599,12 +1600,19 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
     return false;
   }
   function filName(f){ return f.name + (manyMats() ? ' · ' + matOf(f) : ''); }
+  /* Lack-Farben: +1,50 € je gewählter Farbe pro Stück (der Server rechnet das genauso nach) */
+  var LACK_SURCHARGE = 1.5;
+  function isLack(f){ return !!f && /^lack/i.test(matOf(f)); }
+  function lackCount(line){ return line.colors.filter(function(fid){ return isLack(filById(fid)); }).length; }
+  function unitPrice(line){ return PRODUCTS[line.id].price + lackCount(line) * LACK_SURCHARGE; }
+  function filTitle(f){ return filName(f) + (isLack(f) ? ' (+' + formatPrice(LACK_SURCHARGE) + ')' : ''); }
   function partLabel(p, i){
     var parts = partsOf(p);
     return parts[i] || (parts.length > 1 ? 'Farbe ' + (i + 1) : 'Farbe');
   }
   function defaultColors(p){
-    var fs = filsFor(p);
+    var fs = filsFor(p), plain = fs.filter(function(f){ return !isLack(f); });
+    if(plain.length) fs = plain;              // Lack (Aufpreis) nie automatisch vorauswählen
     return partsOf(p).map(function(_, i){ return fs.length ? fs[i % fs.length].id : null; });
   }
   function swStyle(f){ return '--c:' + esc(f.hex); }
@@ -1648,7 +1656,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
     });
     lines = out;
   }
-  function cartTotal(){ return lines.reduce(function(s,l){ return s + PRODUCTS[l.id].price * l.qty; }, 0); }
+  function cartTotal(){ return lines.reduce(function(s,l){ return s + unitPrice(l) * l.qty; }, 0); }
   function cartCount(){ return lines.reduce(function(s,l){ return s + l.qty; }, 0); }
 
   function imagesOf(p){
@@ -1896,12 +1904,12 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
       var sel = filById(line.colors[slot]);
       var label = esc(partLabel(p, slot));
       return '<div class="color-slot">' +
-        '<div class="color-slot-head"><span>' + label + '</span><b>' + esc(sel ? filName(sel) : '') + '</b></div>' +
+        '<div class="color-slot-head"><span>' + label + '</span><b>' + esc(sel ? filTitle(sel) : '') + '</b></div>' +
         '<div class="swatches" role="radiogroup" aria-label="' + label + ' für ' + esc(p.name) + '">' +
           fs.map(function(f){
             var on = sel && f.id === sel.id;
             return '<button type="button" class="sw' + swClass(f) + '" style="' + swStyle(f) + '" role="radio"' +
-              ' aria-checked="' + on + '" tabindex="' + (on ? 0 : -1) + '" aria-label="' + esc(filName(f)) + '" title="' + esc(filName(f)) + '"' +
+              ' aria-checked="' + on + '" tabindex="' + (on ? 0 : -1) + '" aria-label="' + esc(filTitle(f)) + '" title="' + esc(filTitle(f)) + '"' +
               ' data-action="color" data-line="' + li + '" data-slot="' + slot + '" data-fil="' + esc(f.id) + '"></button>';
           }).join('') +
         '</div>' +
@@ -1943,7 +1951,8 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
           '<div class="cart-item-art">' + artHTML(p) + '</div>' +
           '<div class="cart-item-info">' +
             '<div class="cart-item-name">' + n + '</div>' +
-            '<div class="cart-item-price">' + formatPrice(p.price) + '</div>' +
+            '<div class="cart-item-price">' + formatPrice(unitPrice(line)) +
+              (lackCount(line) ? ' <small class="lack-note">inkl. ' + formatPrice(lackCount(line) * LACK_SURCHARGE) + ' Lack</small>' : '') + '</div>' +
             optionPickerHTML(line, li) +
             colorPickerHTML(line, li) +
             (p.note ? '<label class="cart-note"><span>' + esc(p.noteLabel) + '</span>' +
@@ -2037,7 +2046,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
         (p.note ? '<small class="checkout-note' + (line.note ? '' : ' missing') + '">' + esc(p.noteLabel) + ': ' +
           (line.note ? '„' + esc(line.note) + '“' : 'noch nicht eingetragen') + '</small>' : '') +
         (p.logo && line.logo ? '<small class="checkout-note">Eigenes Logo: ' + esc(line.logo.name) + '</small>' : '') +
-        '</span><span>' + formatPrice(p.price * line.qty) + '</span>';
+        '</span><span>' + formatPrice(unitPrice(line) * line.qty) + '</span>';
       listEl.appendChild(row);
     });
     renderChoices();
