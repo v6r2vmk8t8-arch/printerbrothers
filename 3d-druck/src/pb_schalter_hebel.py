@@ -1,14 +1,16 @@
-"""PB Schalter-Hebel im Block-Stil: Hebel zum Aufkleben auf einen normalen Wippen-Lichtschalter.
+"""PB Schalter-Hebel im Block-Stil: deckt den ganzen Lichtschalter ab, Hebel schaltet die Wippe.
 
-Teile (3 kleine Drucke, ohne Stützen, für A1 mini):
-  1. Sockel  64 × 85 × 32 mm (Proportionen 6 × 8 × 3 „Pixel“), Steinmuster vorne, hinten offen,
-             wird mit doppelseitigem Klebeband auf den Schalterrahmen geklebt.
+Teile (Drucke ohne Stützen, für A1 mini):
+  0. Montageplatte  flacher Rahmen um den Schalterrahmen, 2 Schrauben in die Wand (verdeckt)
+  1. Sockel  99 × 132 × 49 mm (Proportionen 6 × 8 × 3 „Pixel“), Steinmuster vorne, hinten offen,
+             wird über Schalter + Montageplatte gestülpt und rastet seitlich ein.
   2. Stab    Holzstab 21 × 21 × 100 mm (2 × 2 × 10 „Pixel“), steht 45° nach oben/unten
   3. Achse   mit Vierkant (wird durch den Stab gesteckt), Exzenter-Scheiben treiben den Mitnehmer
   4. Mitnehmer  kleine Gabel, wird mitten auf die Schalterwippe geklebt (3 Höhen zur Auswahl).
 Funktion: Hebel kippen -> Zapfen schiebt die Gabel -> Wippe kippt. Der Schalter rastet selbst ein.
 
-Koordinaten in Gebrauchslage: x waagrecht, y nach oben, z aus der Wand (z = 0 = Vorderseite Schalterrahmen).
+Koordinaten in Gebrauchslage: x waagrecht, y nach oben, z aus der Wand (z = 0 = Vorderseite Schalterrahmen,
+Wand bei z = -FRAME_T).
 Aufruf:  python3 3d-druck/src/pb_schalter_hebel.py
 """
 import sys
@@ -27,17 +29,21 @@ OUT = ROOT / "3d-druck/schalter-hebel"
 
 # ---------------------------------------------------------------- Maße
 # Proportionen wie der Block-Hebel im Spiel (1 Pixel = PX mm): Sockel 6 × 8 × 3 Pixel, Stab 2 × 2 × 10 Pixel, 45° gekippt.
-PX = 88.0 / 8                   # Rahmen 87 × 87 mm (Efapel), Wippe 57 × 57 mm – gemessen von den Fotos
-BASE_W, BASE_H, DEPTH = 6 * PX, 8 * PX, 3 * PX      # 66 × 88 × 33 mm – sitzt ganz auf dem Rahmen
-INNER_W, INNER_H = 60.5, 77.0  # Hohlraum: Wippe 57 mm + Spiel
+PX = 16.5                      # Sockel deckt den ganzen Efapel-Rahmen (87 × 87 mm) ab; Wippe 57 × 57 mm
+FRAME = 87.0                   # Schalterrahmen außen
+FRAME_T = 10.0                 # Rahmen steht so weit von der Wand ab (Vorderseite Rahmen = z 0)
+WALL = 2.4                     # Wandstärke Sockel
+BASE_W, BASE_H = 6 * PX, 8 * PX                     # 99 × 132 mm
+DEPTH = 3 * PX - FRAME_T                            # Vorderseite bei z = 39.5 (Gesamttiefe ab Wand 49.5 mm)
+INNER_W, INNER_H = 60.5, 77.0  # Abstand der inneren Lagerböcke (Achsenlänge) / Freiraum Wippe
 FRONT = 3.0                    # Stärke der Vorderwand
 ZA = DEPTH - FRONT - 4.5 - 0.7  # Hebelachse knapp hinter der Vorderwand (Stab kommt aus der Mitte)
-STICK = 2 * PX                 # Stab 21 × 21 mm
-STICK_L = 9.5 * PX             # Stab ab Achse (ca. 10 Pixel lang)
+STICK = 22.0                   # Stab 22 × 22 mm (kräftig, aber nicht riesig)
+STICK_L = 110.0                # Stab ab Achse
 ROD_R = 4.5                    # Achse im Inneren
 PIN_END_R = 2.0                # Lagerzapfen in den Seitenwänden
 SLOT_R = 2.25                  # Lagerschlitz (offen nach hinten zur Wand)
-ECC_R, ECC_E = 3.2, 2.4        # Exzenter-Scheiben: 2.4 mm außermittig -> ±1.7 mm Hub bei ±45° (Wippe ±4°)
+ECC_R, ECC_E = 3.4, 3.1        # Exzenter: 3.1 mm außermittig -> ±2.2 mm Hub bei ±45° (Wippe ±4°, Achse jetzt weiter vorne)
 ECC_X = (STICK / 2 + 0.3, STICK / 2 + 6.5)
 ROCKER_AXIS_Z = -2.0           # angenommene Drehachse der Wippe (hinter der Rahmenfläche)
 GAP = 0.4
@@ -66,25 +72,59 @@ def stones(seed=7):
 
 
 def base():
-    hx, hy, ix, iy = BASE_W / 2, BASE_H / 2, INNER_W / 2, INNER_H / 2
-    shell = box(-hx, hx, -hy, hy, 0, DEPTH) - box(-ix, ix, -iy, iy, -1, DEPTH - FRONT)
+    hx, hy = BASE_W / 2, BASE_H / 2
+    z0 = -FRAME_T
+    ix, iy = hx - WALL, hy - WALL
+    shell = box(-hx, hx, -hy, hy, z0, DEPTH) - box(-ix, ix, -iy, iy, z0 - 1, DEPTH - FRONT)
     groove = box(-hx - 1, hx + 1, -hy - 1, hy + 1, DEPTH - 0.8, DEPTH + 1)
     st = []
     for x, y, w, h in stones():
         cs = CrossSection.square((w - 1.0, h - 1.0)).translate((x - hx + 0.5, y - hy + 0.5))
         st.append(Manifold.extrude(cs.offset(-0.4, 1).offset(0.4, 1), 0.81).translate((0, 0, DEPTH - 0.8)))
-    shell = shell - groove + (Manifold.batch_boolean(st, OpType.Add) ^ box(-hx, hx, -hy, hy, 0, DEPTH))
+    shell = shell - groove + (Manifold.batch_boolean(st, OpType.Add) ^ box(-hx, hx, -hy, hy, z0, DEPTH))
     # Öffnung für den Stab (±45°)
     t = np.tan(np.radians(SWING))
     reach = (DEPTH - ZA) * t + STICK / 2 / np.cos(np.radians(SWING)) + 1.5
     shell = shell - box(-STICK / 2 - 0.8, STICK / 2 + 0.8, -reach, reach, DEPTH - FRONT - 1, DEPTH + 1)
-    # Lagerschlitze in den Seitenwänden: offen nach hinten, Einraster kurz vor dem Lager
+    # Lagerböcke innen (hängen an der Vorderwand), Schlitz offen nach hinten, Einraster vor dem Lager
+    bx = INNER_W / 2
     for s in (-1, 1):
-        x0, x1 = (ix - 0.5, hx + 1) if s > 0 else (-hx - 1, -ix + 0.5)
-        slot = box(x0, x1, -SLOT_R, SLOT_R, -1, ZA) + cyl_x(SLOT_R, x0, x1, 0, ZA)
-        bumps = (box(x0, x1, -SLOT_R - 0.1, -1.65, ZA - 3.4, ZA - 2.4) + box(x0, x1, 1.65, SLOT_R + 0.1, ZA - 3.4, ZA - 2.4))
-        shell = shell - slot + ((bumps ^ box(-hx, hx, -hy, hy, 0, DEPTH)) - box(-ix, ix, -iy, iy, -1, DEPTH))
+        x0, x1 = (bx, bx + 3.0) if s > 0 else (-bx - 3.0, -bx)
+        rib = box(x0, x1, -9, 9, ZA - 9, DEPTH - FRONT + 0.01)
+        slot = box(x0 - 1, x1 + 1, -SLOT_R, SLOT_R, ZA - 10, ZA) + cyl_x(SLOT_R, x0 - 1, x1 + 1, 0, ZA)
+        bumps = box(x0, x1, -SLOT_R - 0.1, -1.65, ZA - 3.4, ZA - 2.4) + box(x0, x1, 1.65, SLOT_R + 0.1, ZA - 3.4, ZA - 2.4)
+        shell = shell + (rib - slot + bumps)
+    # Rastnut innen in den Seitenwänden (greift über die Leiste der Montageplatte)
+    zr = z0 + SNAP_Z
+    for s in (-1, 1):
+        x0, x1 = (ix - 0.01, ix + 0.9) if s > 0 else (-ix - 0.9, -ix + 0.01)
+        shell = shell - box(x0, x1, -RAIL_L / 2 - 1, RAIL_L / 2 + 1, zr - 0.2, zr + 1.7)
     return shell
+
+
+SNAP_Z = 6.0       # Höhe der Rastleiste über der Wand
+RAIL_L = 70.0      # Länge der Rastleisten (senkrecht)
+
+
+def plate():
+    """Montageplatte: Ring um den Schalterrahmen, 2 Senkschrauben (oben/unten), seitliche Rastleisten."""
+    hx, hy = BASE_W / 2 - WALL - 0.25, BASE_H / 2 - WALL - 0.25     # passt mit 0.25 mm Spiel in den Sockel
+    z0, t = -FRAME_T, 3.0
+    f = FRAME / 2 + 1.0
+    p = box(-hx, hx, -hy, hy, z0, z0 + t) - box(-f, f, -f, f, z0 - 1, z0 + t + 1)
+    # Seitenleisten (stehen hoch, tragen die Rastnase außen)
+    for s in (-1, 1):
+        x0, x1 = (hx - 2.2, hx) if s > 0 else (-hx, -hx + 2.2)
+        p = p + box(x0, x1, -RAIL_L / 2, RAIL_L / 2, z0, z0 + SNAP_Z + 3.0)
+        nx0, nx1 = (hx - 0.01, hx + 0.7) if s > 0 else (-hx - 0.7, -hx + 0.01)
+        p = p + box(nx0, nx1, -RAIL_L / 2 + 6, RAIL_L / 2 - 6, z0 + SNAP_Z, z0 + SNAP_Z + 1.4)
+    # Senkschrauben oben und unten (Ø 4 mm, Kopf Ø 8)
+    for sy in (-1, 1):
+        y = sy * (f + (hy - f) / 2)
+        hole = Manifold.cylinder(t + 2, 2.2, 2.2, 32).translate((0, y, z0 - 1))
+        sink = Manifold.cylinder(2.2, 2.2, 4.3, 32).translate((0, y, z0 + t - 2.2 + 0.01))
+        p = p - hole - sink
+    return p
 
 
 SQ = 9.0            # Vierkant der Achse im Stab
@@ -98,7 +138,7 @@ def axle():
     rod = cyl_x(ROD_R, -(ix - GAP), -ECC_X[1] + 0.01, 0, ZA) + cyl_x(ROD_R, ECC_X[1] - 0.01, ix - GAP, 0, ZA)
     sq = box(-ECC_X[0] - 0.01, ECC_X[0] + 0.01, -SQ / 2, SQ / 2, ZA - SQ / 2, ZA + SQ / 2)
     key = box(-STICK / 2 - 0.01, STICK / 2 + 0.01, -KEY[0] / 2, KEY[0] / 2, ZA - SQ / 2 - KEY[1], ZA - SQ / 2 + 0.01)
-    ends = cyl_x(PIN_END_R, -(hx - 0.6), -(ix - GAP) + 0.01, 0, ZA) + cyl_x(PIN_END_R, ix - GAP - 0.01, hx - 0.6, 0, ZA)
+    ends = cyl_x(PIN_END_R, -(ix + 2.6), -(ix - GAP) + 0.01, 0, ZA) + cyl_x(PIN_END_R, ix - GAP - 0.01, ix + 2.6, 0, ZA)
     ecc = cyl_x(ECC_R, -ECC_X[1], -ECC_X[0], 0, ZA - ECC_E) + cyl_x(ECC_R, ECC_X[0], ECC_X[1], 0, ZA - ECC_E)
     return rod + sq + key + ends + ecc
 
@@ -161,11 +201,16 @@ def main():
         print(f"  Mitnehmer h={h:.0f} mm: max. Überschneidung über ±45° {worst:.2f} mm³ | Wippe kippt bis ±{abs(beta):.1f}°")
     print(f"  Hub an der Gabel bei ±45°: ±{ECC_E * np.sin(np.radians(45)):.2f} mm")
     print(f"  Stab ∩ Achse (montiert): {(stick_part() ^ axle()).volume():.3f} mm³")
+    P = plate()
+    frame = box(-FRAME / 2, FRAME / 2, -FRAME / 2, FRAME / 2, -FRAME_T, 0)
+    print(f"  Montageplatte ∩ Schalterrahmen: {(P ^ frame).volume():.2f} mm³ | Sockel ∩ Rahmen: {(b ^ frame).volume():.2f} mm³")
+    print(f"  Sockel ∩ Montageplatte (Rastnase greift ein, gewollt klein): {(b ^ P).volume():.2f} mm³")
     # Drucklagen
     bp = b.rotate((180, 0, 0)); bp = bp.translate((0, 0, -bp.bounding_box()[2]))           # Vorderseite aufs Bett
     sp = stick_part().rotate((0, 90, 0)); sp = sp.translate((0, 0, -sp.bounding_box()[2]))  # Stab liegt auf der Seite, Loch senkrecht
     ap = axle().translate((0, 0, -ZA)).rotate((180, 0, 0)); ap = ap.translate((0, 0, -ap.bounding_box()[2]))  # Exzenter nach oben
-    parts = {"sockel": bp, "stab": sp, "achse": ap}
+    pl = plate(); pl = pl.translate((0, 0, -pl.bounding_box()[2]))
+    parts = {"montageplatte": pl, "sockel": bp, "stab": sp, "achse": ap}
     for h in ROCKER_H:
         parts[f"mitnehmer-{h:.0f}mm"] = follower(h).translate((0, 0, -h))
     for k, m in parts.items():
