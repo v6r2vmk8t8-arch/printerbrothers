@@ -104,11 +104,14 @@ export function sanitizeList(input) {
     // Optional: Firmen schicken ihr eigenes Logo mit (statt des Printer-Brothers-Logos)
     const logo = p?.logo === true;
     // Optional: welche Filamente wählbar sind (leer = alle vorrätigen).
-    // filaments = erlaubte Filament-IDs, materials = erlaubte Filamentarten (z. B. "PETG")
-    const filaments = [...new Set((Array.isArray(p?.filaments) ? p.filaments : [])
-      .map((v) => str(v, 40).toLowerCase()).filter((v) => /^[a-z0-9-]+$/.test(v)))].slice(0, 40);
+    // noFilaments = abgewählte Filament-IDs (neue Filamente sind so automatisch dabei),
+    // filaments = alte Erlaubt-Liste (wird beim Öffnen des Admins in noFilaments umgerechnet),
+    // materials = erlaubte Filamentarten (z. B. "PETG")
+    const ids = (v) => [...new Set((Array.isArray(v) ? v : [])
+      .map((x) => str(x, 40).toLowerCase()).filter((x) => /^[a-z0-9-]+$/.test(x)))].slice(0, 80);
+    const filaments = ids(p?.filaments), noFilaments = ids(p?.noFilaments);
     const materials = [...new Set((Array.isArray(p?.materials) ? p.materials : []).map((v) => str(v, 20)).filter(Boolean))].slice(0, 10);
-    return { id, name, desc: str(p?.desc, 240), price, image, images, icon: image ? null : icon, parts, note, noteLabel, logo, options, linkLabel, linkUrl, filaments, materials, visible: p?.visible !== false };
+    return { id, name, desc: str(p?.desc, 240), price, image, images, icon: image ? null : icon, parts, note, noteLabel, logo, options, linkLabel, linkUrl, filaments, noFilaments, materials, visible: p?.visible !== false };
   });
 }
 
@@ -122,10 +125,22 @@ export const filamentLabel = (f) => `${f.name} · ${materialOf(f)}`;
 
 /* Filamente, die bei einem Produkt wählbar sind (nur vorrätige) */
 export function filamentsFor(p, filaments) {
-  const ids = p?.filaments || [], mats = p?.materials || [];
+  const ids = p?.filaments || [], off = p?.noFilaments || [], mats = p?.materials || [];
   return filaments.filter((f) => f.available !== false
-    && (!ids.length || ids.includes(f.id))
+    && (!ids.length || ids.includes(f.id)) && !off.includes(f.id)
     && (!mats.length || mats.includes(materialOf(f))));
+}
+
+/* Einmalige Umstellung: alte Erlaubt-Liste -> Liste der abgewählten Farben (gleiche Auswahl wie vorher) */
+export function migrateFilamentLists(products, filaments) {
+  let changed = false;
+  for (const p of products) {
+    if (!p.filaments?.length) continue;
+    const off = new Set(p.noFilaments || []);
+    filaments.forEach((f) => { if (!p.filaments.includes(f.id)) off.add(f.id); });
+    p.noFilaments = [...off]; p.filaments = []; changed = true;
+  }
+  return changed;
 }
 
 export function sanitizeFilaments(input) {

@@ -1588,9 +1588,9 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
   function matOf(f){ return (f && f.material) || 'PLA'; }
   /* Filamente, die bei diesem Produkt wählbar sind (im Admin festgelegt; leer = alle) */
   function filsFor(p){
-    var ids = (p && p.filaments) || [], mats = (p && p.materials) || [];
+    var ids = (p && p.filaments) || [], off = (p && p.noFilaments) || [], mats = (p && p.materials) || [];
     return FILAMENTS.filter(function(f){
-      return (!ids.length || ids.indexOf(f.id) >= 0) && (!mats.length || mats.indexOf(matOf(f)) >= 0);
+      return (!ids.length || ids.indexOf(f.id) >= 0) && off.indexOf(f.id) < 0 && (!mats.length || mats.indexOf(matOf(f)) >= 0);
     });
   }
   function allowed(p, fid){ return filsFor(p).some(function(f){ return f.id === fid; }); }
@@ -1698,7 +1698,7 @@ footer{ border-top:1px solid var(--line); padding-block:3.25rem calc(3.25rem + 6
       next[p.id] = { name:p.name, price:Number(p.price) || 0, image:imagesOf(p)[0] || null, icon:p.icon || null, parts: Array.isArray(p.parts) && p.parts.length ? p.parts : [''],
         note: p.note === true, noteLabel: p.noteLabel || 'Dein Text', logo: p.logo === true,
         options: (Array.isArray(p.options) ? p.options : []).filter(function(o){ return o && o.name && Array.isArray(o.values) && o.values.length; }),
-        filaments: Array.isArray(p.filaments) ? p.filaments : [], materials: Array.isArray(p.materials) ? p.materials : [] };
+        filaments: Array.isArray(p.filaments) ? p.filaments : [], noFilaments: Array.isArray(p.noFilaments) ? p.noFilaments : [], materials: Array.isArray(p.materials) ? p.materials : [] };
       var el = document.createElement('article');
       el.className = 'product reveal';
       el.style.setProperty('--i', i % 3);
