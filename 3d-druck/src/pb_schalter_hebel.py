@@ -106,8 +106,12 @@ SNAP_Z = 6.0       # Höhe der Rastleiste über der Wand
 RAIL_L = 70.0      # Länge der Rastleisten (senkrecht)
 
 
-def plate():
-    """Montageplatte: Ring um den Schalterrahmen, 2 Senkschrauben (oben/unten), seitliche Rastleisten."""
+TAPE_T = 1.1      # Dicke Montageband (versenkt -> Platte liegt trotzdem plan an der Wand)
+
+
+def plate(klebe=False):
+    """Montageplatte: Ring um den Schalterrahmen, seitliche Rastleisten.
+    klebe=False: 2 Senkschrauben oben/unten. klebe=True: versenkte Taschen für Montageband oben/unten."""
     hx, hy = BASE_W / 2 - WALL - 0.25, BASE_H / 2 - WALL - 0.25     # passt mit 0.25 mm Spiel in den Sockel
     z0, t = -FRAME_T, 3.0
     f = FRAME / 2 + 1.0
@@ -118,6 +122,12 @@ def plate():
         p = p + box(x0, x1, -RAIL_L / 2, RAIL_L / 2, z0, z0 + SNAP_Z + 3.0)
         nx0, nx1 = (hx - 0.01, hx + 0.7) if s > 0 else (-hx - 0.7, -hx + 0.01)
         p = p + box(nx0, nx1, -RAIL_L / 2 + 6, RAIL_L / 2 - 6, z0 + SNAP_Z, z0 + SNAP_Z + 1.4)
+    if klebe:
+        # Taschen für Montageband auf der Rückseite (TAPE_T tief): Band bündig, Rastleisten bleiben auf Höhe
+        for sy in (-1, 1):
+            y0, y1 = sorted((sy * (f + 1.0), sy * (hy - 0.8)))
+            p = p - box(-hx + 4.0, hx - 4.0, y0, y1, z0 - 1, z0 + TAPE_T)
+        return p
     # Senkschrauben oben und unten (Ø 4 mm, Kopf Ø 8)
     for sy in (-1, 1):
         y = sy * (f + (hy - f) / 2)
@@ -210,7 +220,10 @@ def main():
     sp = stick_part().rotate((0, 90, 0)); sp = sp.translate((0, 0, -sp.bounding_box()[2]))  # Stab liegt auf der Seite, Loch senkrecht
     ap = axle().translate((0, 0, -ZA)).rotate((180, 0, 0)); ap = ap.translate((0, 0, -ap.bounding_box()[2]))  # Exzenter nach oben
     pl = plate(); pl = pl.translate((0, 0, -pl.bounding_box()[2]))
-    parts = {"montageplatte": pl, "sockel": bp, "stab": sp, "achse": ap}
+    pk = plate(klebe=True); pk = pk.translate((0, 0, -pk.bounding_box()[2]))
+    yk = BASE_H / 2 - WALL - 0.25 - 0.8 - (FRAME / 2 + 1.0)
+    print(f"  Klebe-Version: 2 Taschen je {BASE_W - 2 * WALL - 0.5 - 8:.0f} × {yk:.1f} mm, {TAPE_T} mm tief")
+    parts = {"montageplatte": pl, "montageplatte-klebe": pk, "sockel": bp, "stab": sp, "achse": ap}
     for h in ROCKER_H:
         parts[f"mitnehmer-{h:.0f}mm"] = follower(h).translate((0, 0, -h))
     for k, m in parts.items():
