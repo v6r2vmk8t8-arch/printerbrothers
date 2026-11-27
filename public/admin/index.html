@@ -1154,9 +1154,7 @@ details.fgroup .list{margin-top:8px}
   }
   function extOf(name){ var m = /\.([a-z0-9]+)$/i.exec(name || ''); var e = m ? m[1].toLowerCase() : ''; return e === 'jpeg' ? 'jpg' : e; }
   var fileExt = '';   // aktiver Typ-Filter ('' = alle)
-  var openFolders = []; // aufgeklappte Ordner (bleiben nach dem Neuladen so)
-  try { openFolders = JSON.parse(localStorage.getItem('pbOpenFolders') || '[]') || []; } catch(e){ openFolders = []; }
-  if(!Array.isArray(openFolders)) openFolders = [];
+  var openFolders = []; // von euch aufgeklappte Ordner – nur bis zum Neuladen, danach ist wieder alles zu
   try { fileExt = localStorage.getItem('pbFileExt') || ''; } catch(e){}
   function renderTypes(){
     var count = {};
@@ -1220,12 +1218,11 @@ details.fgroup .list{margin-top:8px}
     keys.forEach(function(g){
       var d = document.createElement('details'); d.className = 'fgroup';
       // Ordner bleiben so, wie ihr sie auf-/zugeklappt habt; nur beim Suchen gehen alle Treffer-Ordner auf
-      d.open = !!s || keys.length === 1 || openFolders.indexOf(g) >= 0;
+      d.open = !!s || openFolders.indexOf(g) >= 0;
       d.addEventListener('toggle', function(){
         if(s) return;   // Aufklappen durch die Suche nicht merken
         var i = openFolders.indexOf(g);
         if(d.open && i < 0) openFolders.push(g); else if(!d.open && i >= 0) openFolders.splice(i, 1);
-        try { localStorage.setItem('pbOpenFolders', JSON.stringify(openFolders)); } catch(ex){}
       });
       d.innerHTML = '<summary></summary><div class="list"></div>';
       d.querySelector('summary').textContent = g + ' (' + groups[g].length + ')';
