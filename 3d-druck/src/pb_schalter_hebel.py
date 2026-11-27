@@ -149,6 +149,36 @@ def clip_plate():
     return p
 
 
+ARM_T, ARM_W = 2.4, 24.0         # Federarme im Sockel (Dicke in x, Breite in y)
+ARM_GAP = 0.4                     # Luft zwischen Arm und Rahmenkante
+GRIP = 0.8                        # so tief greift die Nase in die Nut (Nut 1.0 tief)
+
+
+def base_clip():
+    """Sockel ohne Montageplatte: Federarme innen links/rechts rasten in die Nut am Schalterrahmen;
+    unten in der Kante ein Schlitz zum Abhebeln mit dem Schraubenzieher."""
+    b = base()
+    z0, zf = -FRAME_T, DEPTH - FRONT
+    xi = FRAME / 2 + ARM_GAP                    # Innenfläche des Arms
+    tip = FRAME / 2 - GRIP                      # Nasenspitze (in der Nut)
+    for s in (-1, 1):
+        x0, x1 = sorted((s * xi, s * (xi + ARM_T)))
+        arm = box(x0, x1, -ARM_W / 2, ARM_W / 2, z0, zf + 0.01)
+        # Verbindung des Arms mit der Vorderwand etwas kräftiger (Fuß)
+        foot = box(*sorted((s * xi, s * (xi + ARM_T + 1.5))), -ARM_W / 2, ARM_W / 2, zf - 3, zf + 0.01)
+        # Nase: unten (Wandseite) Einlaufschräge, oben Halteschräge – in der 2-mm-Nut
+        prof = [(z0, s * (xi + 0.5)), (z0, s * xi), (z0 + 0.95, s * tip), (z0 + 1.2, s * tip), (z0 + GROOVE_H - 0.1, s * xi), (z0 + GROOVE_H - 0.1, s * (xi + 0.5))]
+        cs = CrossSection([[(xx, zz) for zz, xx in prof]])
+        if cs.area() <= 0:
+            cs = CrossSection([[(xx, zz) for zz, xx in prof][::-1]])
+        nose = Manifold.extrude(cs, ARM_W - 4).rotate((90, 0, 0)).translate((0, ARM_W / 2 - 2, 0))
+        b = b + arm + foot + nose
+    # Schlitz zum Abhebeln: unten mittig in der Hinterkante (zur Wand)
+    hy = BASE_H / 2
+    b = b - box(-7, 7, -hy - 1, -hy + WALL + 0.5, z0 - 1, z0 + 2.5)
+    return b
+
+
 def plate(klebe=False):
     """Montageplatte: Ring um den Schalterrahmen, seitliche Rastleisten.
     klebe=False: 2 Senkschrauben oben/unten. klebe=True: versenkte Taschen für Montageband oben/unten."""
@@ -258,6 +288,9 @@ def main():
     C = clip_plate()
     fr = box(-FRAME / 2, FRAME / 2, -FRAME / 2, FRAME / 2, -FRAME_T, 0) - (box(-FRAME / 2 - 1, FRAME / 2 + 1, -FRAME / 2 - 1, FRAME / 2 + 1, -FRAME_T - 1, -FRAME_T + GROOVE_H)
           - box(-FRAME / 2 + GROOVE_D, FRAME / 2 - GROOVE_D, -FRAME / 2 + GROOVE_D, FRAME / 2 - GROOVE_D, -FRAME_T - 1, -FRAME_T + GROOVE_H))
+    BC = base_clip()
+    hits = [(a, (place_lever(lever(), a) ^ BC).volume()) for a in (-45, 0, 45)]
+    print(f"  Sockel-Clip ∩ Rahmen (mit Nut): {(BC ^ fr).volume():.3f} mm³ | Nase greift {GRIP} mm in die Nut | Hebel ∩ Sockel-Clip: {hits}")
     print(f"  Clip-Platte ∩ Rahmen (mit Nut): {(C ^ fr).volume():.3f} mm³ | Nase in der Nut: {NOSE} von {GROOVE_D} mm | Sockel ∩ Clip-Platte: {(b ^ C).volume():.2f} mm³")
     # Drucklagen
     bp = b.rotate((180, 0, 0)); bp = bp.translate((0, 0, -bp.bounding_box()[2]))           # Vorderseite aufs Bett
@@ -268,7 +301,8 @@ def main():
     yk = BASE_H / 2 - WALL - 0.25 - 0.8 - (FRAME / 2 + HOLE_CLEAR + 1.0)
     print(f"  Klebe-Version: 2 Taschen je {BASE_W - 2 * WALL - 0.5 - 8:.0f} × {yk:.1f} mm, {TAPE_T} mm tief")
     pc = clip_plate(); pc = pc.translate((0, 0, -pc.bounding_box()[2]))
-    parts = {"montageplatte": pl, "montageplatte-klebe": pk, "montageplatte-clip": pc, "sockel": bp, "stab": sp, "achse": ap}
+    bc = base_clip().rotate((180, 0, 0)); bc = bc.translate((0, 0, -bc.bounding_box()[2]))
+    parts = {"montageplatte": pl, "montageplatte-klebe": pk, "montageplatte-clip": pc, "sockel": bp, "sockel-clip": bc, "stab": sp, "achse": ap}
     for h in ROCKER_H:
         parts[f"mitnehmer-{h:.0f}mm"] = follower(h).translate((0, 0, -h))
     for k, m in parts.items():
