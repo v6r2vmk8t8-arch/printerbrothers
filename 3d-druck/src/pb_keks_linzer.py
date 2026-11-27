@@ -63,37 +63,40 @@ def heart_hole():
     return h.buffer(0.6, 64).buffer(-0.6, 64).simplify(0.01)   # Kerbe oben weich (Teig löst sich besser)
 
 
-def almond(length, width):
-    """Mandelblatt (beidseitig spitz), Mitte bei (0,0), längs der y-Achse."""
-    t = np.linspace(0, np.pi, 60)
-    x = np.sin(t) * width / 2
-    y = (t / np.pi - 0.5) * length
-    return Polygon(np.r_[np.c_[x, y], np.c_[-x[::-1], y[::-1]]]).buffer(0)
+def teardrop(length, width):
+    """Tropfen längs der y-Achse: unten spitz, oben rund, Mitte bei (0,0)."""
+    r = width / 2
+    top = Point(0, length / 2 - r).buffer(r, 48)
+    return top.union(Point(0, -length / 2).buffer(0.05)).convex_hull.buffer(0.2).buffer(-0.2)
 
 
 def curl(side):
-    """Ranke: vom Fuß nach außen geschwungen, oben nach innen eingerollt."""
-    t = np.linspace(0, 1, 80)
-    # Bogen nach außen (Fuß → Schulter)
-    x1 = side * (1.6 + 3.6 * np.sin(t * np.pi * 0.55))
-    y1 = 13.6 + 7.0 * t
-    # kleine Einrollung oben
-    cx, cy, r = side * 3.4, 20.4, 1.5
-    a0 = np.arctan2(y1[-1] - cy, x1[-1] - cx)
-    a = a0 + side * np.linspace(0, 1.25 * np.pi, 40)
-    x2, y2 = cx + r * np.cos(a) * np.linspace(1, 0.55, 40), cy + r * np.sin(a) * np.linspace(1, 0.55, 40)
-    line = LineString(np.r_[np.c_[x1, y1], np.c_[x2, y2][1:]]).buffer(LINE / 2, 16)
-    end = Point(x2[-1], y2[-1]).buffer(LINE * 0.75, 16)                # Tropfen am Ende
+    """Ranke wie im Foto: beginnt unten an der Mittelachse, schwingt nach oben/außen
+    und rollt sich außen nach unten ein (Schnecke außen)."""
+    t = np.linspace(0, 1, 60)
+    # Stiel: quadratische Kurve vom Fuß an der Achse bis zum Scheitel oben
+    p0, p1, p2 = np.array([0.15, 12.8]), np.array([1.6, 19.0]), np.array([4.3, 21.4])
+    stem = ((1 - t) ** 2)[:, None] * p0 + (2 * (1 - t) * t)[:, None] * p1 + (t ** 2)[:, None] * p2
+    # Schnecke: vom Scheitel nach außen, runter und wieder nach innen, Radius nimmt ab
+    cx, cy = 5.0, 19.6
+    a0 = np.arctan2(p2[1] - cy, p2[0] - cx)
+    a = a0 - np.linspace(0, 1.55 * np.pi, 60)
+    r = np.hypot(*(p2 - [cx, cy])) * np.linspace(1, 0.45, 60)
+    spiral = np.c_[cx + r * np.cos(a), cy + r * np.sin(a)]
+    pts = np.r_[stem, spiral[1:]]
+    pts[:, 0] *= side
+    line = LineString(pts).buffer(LINE / 2, 16)
+    end = Point(*pts[-1]).buffer(LINE * 0.7, 16)
     return unary_union([line, end])
 
 
 def motif():
-    """Ornament für das obere Blatt (Achse = +y)."""
-    parts = [affinity.translate(almond(7.6, 3.4), 0, 21.4)]
+    """Ornament für das obere Blatt (Achse = +y): Tropfen oben, zwei Ranken, zwei Ovale."""
+    parts = [affinity.translate(teardrop(6.6, 3.0), 0, 22.9)]
     for s in (1, -1):
         parts.append(curl(s))
-        ov = affinity.rotate(affinity.scale(Point(0, 0).buffer(1.0, 32), 1.25, 0.8), s * 35)
-        parts.append(affinity.translate(ov, s * 4.6, 13.4))
+        ov = affinity.rotate(affinity.scale(Point(0, 0).buffer(1.0, 32), 0.75, 1.2), -s * 20)
+        parts.append(affinity.translate(ov, s * 4.6, 15.2))
     return unary_union(parts)
 
 
