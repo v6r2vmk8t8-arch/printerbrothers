@@ -7,7 +7,8 @@ Teile (alle ohne Support):
   - Ausstecher (wie bei den anderen Keksen)
   - Stempel: Platte mit Prägung, in der Mitte eine Herz-Schneide; die Platte ist dort offen,
     damit man das ausgestochene Teig-Herz nach oben herausdrücken kann
-  - Griffe: zwei kleine Knäufe, extra gedruckt und in die zwei Mulden links/rechts vom Herz
+  - Herz-Ausstecher: kleiner Ausstecher für das Fenster (z. B. wenn man ohne Stempel arbeitet)
+  - Griffe: zwei kleine Knäufe, extra gedruckt und in die zwei Mulden neben dem Herz
     auf der Stempel-Rückseite geklebt
 
 Linzer: Unterteile nur mit dem Ausstecher, Oberteile mit Ausstecher + Stempel.
@@ -160,6 +161,7 @@ if __name__ == "__main__":
 
     c, s = K.cutter(inner), stamp(inner, hole, deco)
     g = knob() + knob().translate((KNOB_FOOT_D + 4, 0, 0))     # zwei Griffe
+    hc = K.cutter(hole)                                          # kleiner Herz-Ausstecher extra
     name, size = "keks-linzer-schneebluete", round(SIZE)
     flip = s.mirror((0, 0, 1)).translate((0, 0, K.PLATE + CUT_H + 0.5))
     z0 = K.PLATE + CUT_H + 0.5 + POCKET_T
@@ -173,17 +175,19 @@ if __name__ == "__main__":
     w = b[2] - b[0] + 2 * (K.WALL + K.FLANGE_W)
     c = c.translate((-w / 2 - 2, 0, 0))
     s = s.translate((w / 2 + 2, 0, 0))
-    g = g.translate((-(KNOB_FOOT_D + 4) / 2, -(b[3] - b[1]) / 2 - 12, 0))
-    for m, n, k in ((c, "ausstecher", 1), (s, "stempel", 1), (g, "griff", 2)):
+    g = g.translate((-(KNOB_FOOT_D + 4) / 2 - 16, -(b[3] - b[1]) / 2 - 12, 0))
+    hc = hc.translate((22, -(b[3] - b[1]) / 2 - 16, 0))
+    for m, n, k in ((c, "ausstecher", 1), (s, "stempel", 1), (g, "griff", 2), (hc, "herz-ausstecher", 1)):
         assert len(m.decompose()) == k, f"{n}: falsche Anzahl Teile"
     # Mulden müssen frei von Herz-Schneide und Stempelrand liegen
     for x, y in knob_pos():
         pk = Point(x, y).buffer(POCKET_D / 2)
         print(f"Mulde ({x:+.1f}, {y:+.1f}): Abstand Herz-Schneide {pk.distance(hole.buffer(CUT_W)):.2f} mm,"
               f" Stempelrand {inner.buffer(-K.GAP).exterior.distance(pk):.2f} mm")
-    export_parts({"ausstecher": to_tm(c), "stempel": to_tm(s), "griff": to_tm(g)}, K.OUT / f"{name}_{size}mm")
+    export_parts({"ausstecher": to_tm(c), "stempel": to_tm(s), "griff": to_tm(g), "herz-ausstecher": to_tm(hc)},
+                 K.OUT / f"{name}_{size}mm")
     print(f"Gewicht: Ausstecher {c.volume() / 1000 * 1.24:.1f} g, Stempel {s.volume() / 1000 * 1.24:.1f} g, "
-          f"2 Griffe {g.volume() / 1000 * 1.24:.1f} g (PLA)")
+          f"2 Griffe {g.volume() / 1000 * 1.24:.1f} g, Herz-Ausstecher {hc.volume() / 1000 * 1.24:.1f} g (PLA)")
 
     # Keks-Vorschau
     import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
