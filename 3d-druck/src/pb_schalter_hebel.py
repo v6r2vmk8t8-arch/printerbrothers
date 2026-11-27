@@ -29,10 +29,10 @@ OUT = ROOT / "3d-druck/schalter-hebel"
 
 # ---------------------------------------------------------------- Maße
 # Proportionen wie der Block-Hebel im Spiel (1 Pixel = PX mm): Sockel 6 × 8 × 3 Pixel, Stab 2 × 2 × 10 Pixel, 45° gekippt.
-PX = 16.5                      # Sockel deckt den ganzen Efapel-Rahmen (87 × 87 mm) ab; Wippe 57 × 57 mm
-FRAME = 85.0                   # Schalterrahmen außen (nachgemessen 85 × 85 mm)
+PX = 16.5                      # Sockel deckt den ganzen Efapel-Rahmen (85,6 × 85,6 mm) ab; Wippe 57 × 57 mm
+FRAME = 85.6                   # Efapel Logus 90, Rahmen 90910 TBR: 85,6 × 85,6 mm (Maßblatt efapel.pt)
 HOLE_CLEAR = 0.8               # Luft je Seite im Loch der Montageplatte (gedruckte Löcher werden ca. 0.2 mm kleiner)
-FRAME_T = 10.0                 # Rahmen steht so weit von der Wand ab (Vorderseite Rahmen = z 0)
+FRAME_T = 10.4                 # Rahmen steht 10,4 mm von der Wand ab, Wippe bis 15,8 mm (Maßblatt) (Vorderseite Rahmen = z 0)
 WALL = 2.4                     # Wandstärke Sockel
 BASE_W, BASE_H = 6 * PX, 8 * PX                     # 99 × 132 mm
 DEPTH = 3 * PX - FRAME_T                            # Vorderseite bei z = 39.5 (Gesamttiefe ab Wand 49.5 mm)
