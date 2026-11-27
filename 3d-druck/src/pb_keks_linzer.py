@@ -7,7 +7,8 @@ Teile (alle ohne Support):
   - Ausstecher (wie bei den anderen Keksen)
   - Stempel: Platte mit Prägung, in der Mitte eine Herz-Schneide; die Platte ist dort offen,
     damit man das ausgestochene Teig-Herz nach oben herausdrücken kann
-  - Griff: Herz-Rahmen, extra gedruckt und auf die Stempel-Rückseite geklebt (Finger passt durch)
+  - Griffe: zwei kleine Knäufe, extra gedruckt und in die zwei Mulden links/rechts vom Herz
+    auf der Stempel-Rückseite geklebt
 
 Linzer: Unterteile nur mit dem Ausstecher, Oberteile mit Ausstecher + Stempel.
 Aufruf:  python3 3d-druck/src/pb_keks_linzer.py
@@ -33,10 +34,16 @@ CUT_W = 1.0         # Herz-Schneide: Wandstärke unten
 CUT_TIP = 0.6       # Herz-Schneide: Wandstärke oben
 RELIEF = 1.8        # Höhe der Prägung
 LINE = 1.1          # Strichstärke der Ranken
-GRIP_H = 13.0       # Herz-Rahmen-Griff: Höhe
-GRIP_WALL = 2.0     # Herz-Rahmen-Griff: Wandstärke
-GROOVE_T = 0.6      # Nut in der Stempel-Rückseite für den Griff
-GROOVE_CL = 0.2     # Spiel in der Nut
+# Griffe: zwei kleine Knäufe (wie bei den anderen Stempeln, nur kleiner) auf zwei gegenüber-
+# liegenden Blättern (dort ist am meisten Platz neben der Herz-Schneide)
+KNOB_R = 18.5       # Abstand Knauf-Mitte ↔ Keksmitte
+KNOB_ANG = 30.0     # Richtung: Blatt rechts oben (+ das gegenüber links unten)
+KNOB_FOOT_D = 12.0  # Fuß-Ø
+KNOB_NECK_D = 7.0   # Hals-Ø
+KNOB_TOP_D = 12.0   # Knauf-Ø oben
+KNOB_H = 15.0       # Höhe
+POCKET_D = 12.4     # Zentriermulde (0,2 mm Spiel je Seite)
+POCKET_T = 0.6      # Tiefe der Mulde
 
 
 # ---------------------------------------------------------------- Formen
@@ -118,16 +125,29 @@ def stamp(inner, hole, deco):
         w = CUT_W - (CUT_W - CUT_TIP) * (i + 1) / n
         z = K.PLATE + CUT_H - 1.5 + i * 1.5 / n
         wall += (to_cs(hole.buffer(w, 64)) - hcs).extrude(1.5 / n + 0.01).translate((0, 0, z))
-    # Nut für den Griff auf der Rückseite
-    groove = (to_cs(hole.buffer(GRIP_WALL + GROOVE_CL, 64)) - to_cs(hole.buffer(-GROOVE_CL, 64))).extrude(GROOVE_T).translate((0, 0, -0.01))
-    return plate + rel + wall - groove
+    # zwei Zentriermulden für die Griffe auf der Rückseite (= Unterseite beim Druck)
+    pockets = None
+    for x, y in knob_pos():
+        pk = K.CrossSection.circle(POCKET_D / 2).extrude(POCKET_T).translate((x, y, -0.01))
+        pockets = pk if pockets is None else pockets + pk
+    return plate + rel + wall - pockets
 
 
-def grip(hole):
-    """Herz-Rahmen: steckt in der Nut, innen so groß wie das Fenster (Finger/Kochlöffelstiel passt durch)."""
-    ring = to_cs(hole.buffer(GRIP_WALL, 64)) - to_cs(hole)
-    lip = to_cs(hole.buffer(GRIP_WALL + 1.2, 64)) - to_cs(hole)      # oben etwas breiter zum Greifen
-    return ring.extrude(GRIP_H - 1.6) + lip.extrude(1.6).translate((0, 0, GRIP_H - 1.6))
+def knob_pos():
+    a = np.radians(KNOB_ANG)
+    return [(KNOB_R * np.cos(a), KNOB_R * np.sin(a)), (-KNOB_R * np.cos(a), -KNOB_R * np.sin(a))]
+
+
+def knob():
+    """Kleiner Pilz-Knauf, stehend gedruckt, alle Übergänge 45° → ohne Support."""
+    rf, rn, rt = KNOB_FOOT_D / 2, KNOB_NECK_D / 2, KNOB_TOP_D / 2
+    z1 = 1.6
+    z2 = z1 + (rf - rn)
+    z4 = KNOB_H - 2.0
+    z3 = z4 - (rt - rn)
+    prof = [(0, 0), (rf - 0.4, 0), (rf, 0.4), (rf, z1), (rn, z2), (rn, z3), (rt, z4),
+            (rt, KNOB_H - 0.8), (rt - 0.8, KNOB_H), (0, KNOB_H)]
+    return Manifold.revolve(K.CrossSection([prof]), 96)
 
 
 if __name__ == "__main__":
@@ -138,23 +158,32 @@ if __name__ == "__main__":
     print(f"Prägung ↔ Herz-Schneide: {deco.distance(hole.buffer(CUT_W)):.2f} mm,"
           f" Prägung ↔ Stempelrand: {inner.buffer(-K.GAP).exterior.distance(deco):.2f} mm")
 
-    c, s, g = K.cutter(inner), stamp(inner, hole, deco), grip(hole)
+    c, s = K.cutter(inner), stamp(inner, hole, deco)
+    g = knob() + knob().translate((KNOB_FOOT_D + 4, 0, 0))     # zwei Griffe
     name, size = "keks-linzer-schneebluete", round(SIZE)
-    cen = inner.centroid
     flip = s.mirror((0, 0, 1)).translate((0, 0, K.PLATE + CUT_H + 0.5))
+    z0 = K.PLATE + CUT_H + 0.5 + POCKET_T
+    (x1, y1), (x2, y2) = knob_pos()
+    # Stempel ist umgedreht (gespiegelt an z) → Lage in x/y bleibt gleich
+    knobs = knob().translate((x1, y1, z0)) + knob().translate((x2, y2, z0))
     preview({"ausstecher": to_tm(c.mirror((0, 0, 1)).translate((0, 0, K.H_CUT))), "stempel": to_tm(flip),
-             "griff": to_tm(grip(hole).translate((cen.x, cen.y, K.PLATE + CUT_H + 0.5 + GROOVE_T)))},
+             "griff": to_tm(knobs)},
             K.OUT / f"{name}_{size}mm_montiert.png",
             colors={"ausstecher": "#2e9e4f", "stempel": "#e6e6e6", "griff": "#ff7a2f"})
     w = b[2] - b[0] + 2 * (K.WALL + K.FLANGE_W)
     c = c.translate((-w / 2 - 2, 0, 0))
     s = s.translate((w / 2 + 2, 0, 0))
-    g = g.translate((0, -(b[3] - b[1]) / 2 - 18, 0))
-    for m, n in ((c, "ausstecher"), (s, "stempel"), (g, "griff")):
-        assert len(m.decompose()) == 1, f"{n} besteht aus mehreren Teilen"
+    g = g.translate((-(KNOB_FOOT_D + 4) / 2, -(b[3] - b[1]) / 2 - 12, 0))
+    for m, n, k in ((c, "ausstecher", 1), (s, "stempel", 1), (g, "griff", 2)):
+        assert len(m.decompose()) == k, f"{n}: falsche Anzahl Teile"
+    # Mulden müssen frei von Herz-Schneide und Stempelrand liegen
+    for x, y in knob_pos():
+        pk = Point(x, y).buffer(POCKET_D / 2)
+        print(f"Mulde ({x:+.1f}, {y:+.1f}): Abstand Herz-Schneide {pk.distance(hole.buffer(CUT_W)):.2f} mm,"
+              f" Stempelrand {inner.buffer(-K.GAP).exterior.distance(pk):.2f} mm")
     export_parts({"ausstecher": to_tm(c), "stempel": to_tm(s), "griff": to_tm(g)}, K.OUT / f"{name}_{size}mm")
     print(f"Gewicht: Ausstecher {c.volume() / 1000 * 1.24:.1f} g, Stempel {s.volume() / 1000 * 1.24:.1f} g, "
-          f"Griff {g.volume() / 1000 * 1.24:.1f} g (PLA)")
+          f"2 Griffe {g.volume() / 1000 * 1.24:.1f} g (PLA)")
 
     # Keks-Vorschau
     import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
