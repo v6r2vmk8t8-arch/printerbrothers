@@ -110,6 +110,45 @@ RAIL_L = 70.0      # Länge der Rastleisten (senkrecht)
 TAPE_T = 1.1      # Dicke Montageband (versenkt -> Platte liegt trotzdem plan an der Wand)
 
 
+CLIP_HOLE = 0.4     # Clip-Version: Luft je Seite im Loch (nach Druckschwund ca. 0.25 mm)
+GROOVE_H, GROOVE_D = 2.0, 1.0     # Nut am Rahmen an der Wand: 2 mm hoch, 1 mm tief (gemessen)
+NOSE = 0.9          # Rastnase greift so tief in die Nut
+FINGER_L, FINGER_W = 34.0, 2.6    # federnde Zungen links/rechts
+
+
+def clip_plate():
+    """Montageplatte ohne Kleben/Schrauben: federnde Zungen links/rechts rasten in die Nut am Schalterrahmen."""
+    hx, hy = BASE_W / 2 - WALL - 0.25, BASE_H / 2 - WALL - 0.25
+    z0, t = -FRAME_T, 3.0
+    f = FRAME / 2 + CLIP_HOLE
+    p = box(-hx, hx, -hy, hy, z0, z0 + t) - box(-f, f, -f, f, z0 - 1, z0 + t + 1)
+    for s in (-1, 1):
+        # Rastleiste außen für den Sockel (wie bei den anderen Platten)
+        x0, x1 = (hx - 2.2, hx) if s > 0 else (-hx, -hx + 2.2)
+        p = p + box(x0, x1, -RAIL_L / 2, RAIL_L / 2, z0, z0 + SNAP_Z + 3.0)
+        nx0, nx1 = (hx - 0.01, hx + 0.7) if s > 0 else (-hx - 0.7, -hx + 0.01)
+        p = p + box(nx0, nx1, -RAIL_L / 2 + 6, RAIL_L / 2 - 6, z0 + SNAP_Z, z0 + SNAP_Z + 1.4)
+        # federnde Zunge: innerer Streifen, oben angebunden, unten frei (Schlitz außen + Schlitz am Ende)
+        xi = s * f                                    # Innenkante (Loch)
+        xs0, xs1 = sorted((xi + s * FINGER_W, xi + s * (FINGER_W + 0.8)))
+        y_top, y_bot = FINGER_L / 2, -FINGER_L / 2
+        p = p - box(xs0, xs1, y_bot - 0.8, y_top, z0 - 1, z0 + t + 1)                  # Längsschlitz
+        ex0, ex1 = sorted((xi - s * 0.01, xi + s * (FINGER_W + 0.8)))
+        p = p - box(ex0, ex1, y_bot - 0.8, y_bot, z0 - 1, z0 + t + 1)                   # Schlitz am freien Ende
+        # Rastnase innen an der Zunge: unten flach (hakt in die Nut), zur Wand hin angeschrägt
+        nose_in = xi - s * NOSE
+        a, b = sorted((xi + s * 0.01, nose_in))
+        yy0, yy1 = y_bot + 1.0, y_bot + 12.0           # nur am freien Ende – dort federt die Zunge
+        xo = xi + s * 0.4                              # 0.4 mm in die Zunge hinein -> fest verbunden
+        prof = [(z0, xo), (z0, xi), (z0 + 1.2, nose_in), (z0 + GROOVE_H - 0.25, nose_in), (z0 + GROOVE_H - 0.25, xo)]
+        cs = CrossSection([[(xx, zz) for zz, xx in prof]])
+        if cs.area() <= 0:
+            cs = CrossSection([[(xx, zz) for zz, xx in prof][::-1]])
+        nose = Manifold.extrude(cs, yy1 - yy0).rotate((90, 0, 0)).translate((0, yy1, 0))
+        p = p + nose
+    return p
+
+
 def plate(klebe=False):
     """Montageplatte: Ring um den Schalterrahmen, seitliche Rastleisten.
     klebe=False: 2 Senkschrauben oben/unten. klebe=True: versenkte Taschen für Montageband oben/unten."""
@@ -216,6 +255,10 @@ def main():
     frame = box(-FRAME / 2, FRAME / 2, -FRAME / 2, FRAME / 2, -FRAME_T, 0)
     print(f"  Montageplatte ∩ Schalterrahmen: {(P ^ frame).volume():.2f} mm³ | Sockel ∩ Rahmen: {(b ^ frame).volume():.2f} mm³")
     print(f"  Sockel ∩ Montageplatte (Rastnase greift ein, gewollt klein): {(b ^ P).volume():.2f} mm³")
+    C = clip_plate()
+    fr = box(-FRAME / 2, FRAME / 2, -FRAME / 2, FRAME / 2, -FRAME_T, 0) - (box(-FRAME / 2 - 1, FRAME / 2 + 1, -FRAME / 2 - 1, FRAME / 2 + 1, -FRAME_T - 1, -FRAME_T + GROOVE_H)
+          - box(-FRAME / 2 + GROOVE_D, FRAME / 2 - GROOVE_D, -FRAME / 2 + GROOVE_D, FRAME / 2 - GROOVE_D, -FRAME_T - 1, -FRAME_T + GROOVE_H))
+    print(f"  Clip-Platte ∩ Rahmen (mit Nut): {(C ^ fr).volume():.3f} mm³ | Nase in der Nut: {NOSE} von {GROOVE_D} mm | Sockel ∩ Clip-Platte: {(b ^ C).volume():.2f} mm³")
     # Drucklagen
     bp = b.rotate((180, 0, 0)); bp = bp.translate((0, 0, -bp.bounding_box()[2]))           # Vorderseite aufs Bett
     sp = stick_part().rotate((0, 90, 0)); sp = sp.translate((0, 0, -sp.bounding_box()[2]))  # Stab liegt auf der Seite, Loch senkrecht
@@ -224,7 +267,8 @@ def main():
     pk = plate(klebe=True); pk = pk.translate((0, 0, -pk.bounding_box()[2]))
     yk = BASE_H / 2 - WALL - 0.25 - 0.8 - (FRAME / 2 + HOLE_CLEAR + 1.0)
     print(f"  Klebe-Version: 2 Taschen je {BASE_W - 2 * WALL - 0.5 - 8:.0f} × {yk:.1f} mm, {TAPE_T} mm tief")
-    parts = {"montageplatte": pl, "montageplatte-klebe": pk, "sockel": bp, "stab": sp, "achse": ap}
+    pc = clip_plate(); pc = pc.translate((0, 0, -pc.bounding_box()[2]))
+    parts = {"montageplatte": pl, "montageplatte-klebe": pk, "montageplatte-clip": pc, "sockel": bp, "stab": sp, "achse": ap}
     for h in ROCKER_H:
         parts[f"mitnehmer-{h:.0f}mm"] = follower(h).translate((0, 0, -h))
     for k, m in parts.items():
