@@ -1,0 +1,164 @@
+"""Linzer-Keksausstecher „Schneeblüte“ mit Herz-Fenster (Kundenauftrag Dani, nach Foto).
+
+Sechsblättrige Blütenform, geprägte Ornamente (Mandelblatt + zwei Ranken + zwei Ovale je Blatt)
+und ein Herz-Ausstecher in der Mitte des Stempels für das Marmeladen-Fenster.
+
+Teile (alle ohne Support):
+  - Ausstecher (wie bei den anderen Keksen)
+  - Stempel: Platte mit Prägung, in der Mitte eine Herz-Schneide; die Platte ist dort offen,
+    damit man das ausgestochene Teig-Herz nach oben herausdrücken kann
+  - Griff: Herz-Rahmen, extra gedruckt und auf die Stempel-Rückseite geklebt (Finger passt durch)
+
+Linzer: Unterteile nur mit dem Ausstecher, Oberteile mit Ausstecher + Stempel.
+Aufruf:  python3 3d-druck/src/pb_keks_linzer.py
+"""
+import sys
+from pathlib import Path
+
+import numpy as np
+from shapely import affinity
+from shapely.geometry import LineString, Point, Polygon
+from shapely.ops import unary_union
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import pb_keksausstecher as K  # noqa: E402  (Ausstecher, Helfer, gemeinsame Maße)
+from pb_keksausstecher import Manifold, to_cs, to_tm  # noqa: E402,F401
+from stl_tools import export_parts, preview  # noqa: E402
+
+# ---------------------------------------------------------------- Parameter
+SIZE = 57.0         # Keks von Blattspitze zu Blattspitze
+HEART_W = 18.0      # Breite des Herz-Fensters
+CUT_H = 6.0         # Herz-Schneide: Höhe über der Platte (Teig bis ca. 4 mm)
+CUT_W = 1.0         # Herz-Schneide: Wandstärke unten
+CUT_TIP = 0.6       # Herz-Schneide: Wandstärke oben
+RELIEF = 1.8        # Höhe der Prägung
+LINE = 1.1          # Strichstärke der Ranken
+GRIP_H = 13.0       # Herz-Rahmen-Griff: Höhe
+GRIP_WALL = 2.0     # Herz-Rahmen-Griff: Wandstärke
+GROOVE_T = 0.6      # Nut in der Stempel-Rückseite für den Griff
+GROOVE_CL = 0.2     # Spiel in der Nut
+
+
+# ---------------------------------------------------------------- Formen
+def outline():
+    """Sechsblättrige Blüte mit leicht spitzen, gezackten Blattenden (Blatt oben/unten)."""
+    R = SIZE / 2
+    parts = [Point(0, 0).buffer(R * 0.66, 128)]
+    for k in range(6):
+        a = 90 + 60 * k
+        lobe = [Point(0, R * 0.60).buffer(R * 0.34, 64),              # Blattkörper
+                Point(0, R - 2.6).buffer(2.6, 32),                    # Spitze
+                Point(-4.4, R * 0.85).buffer(2.6, 32),                # Zacken links
+                Point(4.4, R * 0.85).buffer(2.6, 32)]                 # Zacken rechts
+        parts.append(affinity.rotate(unary_union(lobe), a - 90, origin=(0, 0)))
+    o = unary_union(parts)
+    o = o.buffer(1.6, 64).buffer(-1.6, 64)     # Täler rund ausfüllen
+    o = o.buffer(-0.6, 64).buffer(0.6, 64)     # Spitzen leicht runden
+    k = SIZE / (o.bounds[3] - o.bounds[1])
+    return affinity.scale(o, k, k, origin=(0, 0)).simplify(0.01)   # weniger Punkte → kleine STL
+
+
+def heart_hole():
+    h = K.heart(HEART_W)
+    return h.buffer(0.6, 64).buffer(-0.6, 64).simplify(0.01)   # Kerbe oben weich (Teig löst sich besser)
+
+
+def almond(length, width):
+    """Mandelblatt (beidseitig spitz), Mitte bei (0,0), längs der y-Achse."""
+    t = np.linspace(0, np.pi, 60)
+    x = np.sin(t) * width / 2
+    y = (t / np.pi - 0.5) * length
+    return Polygon(np.r_[np.c_[x, y], np.c_[-x[::-1], y[::-1]]]).buffer(0)
+
+
+def curl(side):
+    """Ranke: vom Fuß nach außen geschwungen, oben nach innen eingerollt."""
+    t = np.linspace(0, 1, 80)
+    # Bogen nach außen (Fuß → Schulter)
+    x1 = side * (1.6 + 3.6 * np.sin(t * np.pi * 0.55))
+    y1 = 13.6 + 7.0 * t
+    # kleine Einrollung oben
+    cx, cy, r = side * 3.4, 20.4, 1.5
+    a0 = np.arctan2(y1[-1] - cy, x1[-1] - cx)
+    a = a0 + side * np.linspace(0, 1.25 * np.pi, 40)
+    x2, y2 = cx + r * np.cos(a) * np.linspace(1, 0.55, 40), cy + r * np.sin(a) * np.linspace(1, 0.55, 40)
+    line = LineString(np.r_[np.c_[x1, y1], np.c_[x2, y2][1:]]).buffer(LINE / 2, 16)
+    end = Point(x2[-1], y2[-1]).buffer(LINE * 0.75, 16)                # Tropfen am Ende
+    return unary_union([line, end])
+
+
+def motif():
+    """Ornament für das obere Blatt (Achse = +y)."""
+    parts = [affinity.translate(almond(7.6, 3.4), 0, 21.4)]
+    for s in (1, -1):
+        parts.append(curl(s))
+        ov = affinity.rotate(affinity.scale(Point(0, 0).buffer(1.0, 32), 1.25, 0.8), s * 35)
+        parts.append(affinity.translate(ov, s * 4.6, 13.4))
+    return unary_union(parts)
+
+
+def design():
+    m = motif()
+    return unary_union([affinity.rotate(m, 60 * k, origin=(0, 0)) for k in range(6)])
+
+
+# ---------------------------------------------------------------- Teile
+def stamp(inner, hole, deco):
+    plate_shape = inner.buffer(-K.GAP, 64)
+    plate = to_cs(plate_shape.difference(hole)).extrude(K.PLATE)
+    rel = to_cs(deco.intersection(plate_shape.buffer(-1.0))).extrude(RELIEF + 0.05).translate((0, 0, K.PLATE - 0.05))
+    # Herz-Schneide, Innenseite bündig mit dem Loch, außen schräg zur Spitze
+    hcs = to_cs(hole)
+    wall = (to_cs(hole.buffer(CUT_W, 64)) - hcs).extrude(CUT_H - 1.5 + 0.05).translate((0, 0, K.PLATE - 0.05))
+    n = 8
+    for i in range(n):
+        w = CUT_W - (CUT_W - CUT_TIP) * (i + 1) / n
+        z = K.PLATE + CUT_H - 1.5 + i * 1.5 / n
+        wall += (to_cs(hole.buffer(w, 64)) - hcs).extrude(1.5 / n + 0.01).translate((0, 0, z))
+    # Nut für den Griff auf der Rückseite
+    groove = (to_cs(hole.buffer(GRIP_WALL + GROOVE_CL, 64)) - to_cs(hole.buffer(-GROOVE_CL, 64))).extrude(GROOVE_T).translate((0, 0, -0.01))
+    return plate + rel + wall - groove
+
+
+def grip(hole):
+    """Herz-Rahmen: steckt in der Nut, innen so groß wie das Fenster (Finger/Kochlöffelstiel passt durch)."""
+    ring = to_cs(hole.buffer(GRIP_WALL, 64)) - to_cs(hole)
+    lip = to_cs(hole.buffer(GRIP_WALL + 1.2, 64)) - to_cs(hole)      # oben etwas breiter zum Greifen
+    return ring.extrude(GRIP_H - 1.6) + lip.extrude(1.6).translate((0, 0, GRIP_H - 1.6))
+
+
+if __name__ == "__main__":
+    inner, hole, deco = outline(), heart_hole(), design()
+    b = inner.bounds
+    print(f"Keks: {b[2] - b[0]:.1f} × {b[3] - b[1]:.1f} mm, Herz-Fenster {HEART_W:.0f} mm")
+    # Abstände prüfen
+    print(f"Prägung ↔ Herz-Schneide: {deco.distance(hole.buffer(CUT_W)):.2f} mm,"
+          f" Prägung ↔ Stempelrand: {inner.buffer(-K.GAP).exterior.distance(deco):.2f} mm")
+
+    c, s, g = K.cutter(inner), stamp(inner, hole, deco), grip(hole)
+    name, size = "keks-linzer-schneebluete", round(SIZE)
+    cen = inner.centroid
+    flip = s.mirror((0, 0, 1)).translate((0, 0, K.PLATE + CUT_H + 0.5))
+    preview({"ausstecher": to_tm(c.mirror((0, 0, 1)).translate((0, 0, K.H_CUT))), "stempel": to_tm(flip),
+             "griff": to_tm(grip(hole).translate((cen.x, cen.y, K.PLATE + CUT_H + 0.5 + GROOVE_T)))},
+            K.OUT / f"{name}_{size}mm_montiert.png",
+            colors={"ausstecher": "#2e9e4f", "stempel": "#e6e6e6", "griff": "#ff7a2f"})
+    w = b[2] - b[0] + 2 * (K.WALL + K.FLANGE_W)
+    c = c.translate((-w / 2 - 2, 0, 0))
+    s = s.translate((w / 2 + 2, 0, 0))
+    g = g.translate((0, -(b[3] - b[1]) / 2 - 18, 0))
+    for m, n in ((c, "ausstecher"), (s, "stempel"), (g, "griff")):
+        assert len(m.decompose()) == 1, f"{n} besteht aus mehreren Teilen"
+    export_parts({"ausstecher": to_tm(c), "stempel": to_tm(s), "griff": to_tm(g)}, K.OUT / f"{name}_{size}mm")
+    print(f"Gewicht: Ausstecher {c.volume() / 1000 * 1.24:.1f} g, Stempel {s.volume() / 1000 * 1.24:.1f} g, "
+          f"Griff {g.volume() / 1000 * 1.24:.1f} g (PLA)")
+
+    # Keks-Vorschau
+    import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
+    from shapely.plotting import plot_polygon
+    fig, ax = plt.subplots(figsize=(5.5, 5.5))
+    plot_polygon(inner, ax=ax, add_points=False, facecolor="#e8b778", edgecolor="#8a5a2b")
+    plot_polygon(deco.intersection(inner.buffer(-K.GAP - 1.0)), ax=ax, add_points=False, facecolor="#a8763c", edgecolor="#6b4420", linewidth=0.4)
+    plot_polygon(hole, ax=ax, add_points=False, facecolor="#b3121d", edgecolor="#6b0a10")
+    ax.set_aspect("equal"); ax.axis("off"); ax.set_title("Linzer „Schneeblüte“ – so sieht der Keks aus")
+    fig.savefig(K.OUT / f"{name}_keks-vorschau.png", dpi=150, bbox_inches="tight")
