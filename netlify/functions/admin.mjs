@@ -1,5 +1,5 @@
 // Admin: Login prüfen, Produkte und Filamente speichern, Fotos hochladen
-import { checkAuth, cleanupImages, json, loadFilaments, loadProducts, loadReviews, loadSettings, ORDER_STATUS, orderStore, REVIEW_STATUS, reviewStore, sanitizeFilaments, sanitizeList, sanitizeSettings, saveFilaments, saveProducts, saveSettings, shopStore } from "../lib/shop.mjs";
+import { checkAuth, cleanupImages, json, loadFilaments, loadProducts, loadReviews, loadSettings, migrateFilamentLists, ORDER_STATUS, orderStore, REVIEW_STATUS, reviewStore, sanitizeFilaments, sanitizeList, sanitizeSettings, saveFilaments, saveProducts, saveSettings, shopStore } from "../lib/shop.mjs";
 
 const TYPES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 const MAX_BYTES = 4 * 1024 * 1024;
@@ -12,7 +12,11 @@ export default async (req) => {
   try {
     if (route === "login" && req.method === "POST") return json({ ok: true });
 
-    if (route === "products" && req.method === "GET") return json(await loadProducts());
+    if (route === "products" && req.method === "GET") {
+      const [list, fils] = await Promise.all([loadProducts(), loadFilaments()]);
+      if (migrateFilamentLists(list, fils)) await saveProducts(sanitizeList(list));
+      return json(list);
+    }
 
     if (route === "products" && req.method === "PUT") {
       const list = sanitizeList(await req.json());

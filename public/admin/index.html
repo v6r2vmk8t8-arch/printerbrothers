@@ -153,6 +153,10 @@ details.fgroup .list{margin-top:8px}
 .fpick{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 8px}
 .fpick button{display:inline-flex;align-items:center;gap:7px;min-height:36px;padding:4px 12px 4px 6px;border-radius:99px;border:1px solid var(--line-strong);background:none;color:var(--ink-soft);font-size:.82rem;font-weight:600;cursor:pointer}
 .fpick.mats button{padding-left:12px}
+.fpick-head{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline}
+.fpick-head small{opacity:.75}
+#fFils button[aria-pressed=false]{opacity:.5;text-decoration:line-through}
+.linkbtn{background:none;border:0;padding:0;color:var(--filament);font:inherit;text-decoration:underline;cursor:pointer}
 .fpick button .swatch{width:22px;height:22px}
 .fpick button[aria-pressed=true]{border-color:var(--filament-line);background:var(--filament-soft);color:var(--ink)}
 .fpick button[aria-pressed=true]::after{content:"✓";color:var(--filament)}
@@ -413,7 +417,8 @@ details.fgroup .list{margin-top:8px}
   <div id="fFilWrap">
     <p class="hint" style="margin:2px 0 0" id="fMatHint">Filamentart:</p>
     <div class="fpick mats" id="fMats" role="group" aria-label="Erlaubte Filamentarten"></div>
-    <p class="hint" style="margin:6px 0 0">Farben:</p>
+    <p class="hint fpick-head" style="margin:6px 0 0">Farben <small>– angetippt = abwählen; neue Filamente sind automatisch dabei</small>
+      <span><button type="button" class="linkbtn" id="fFilAll">Alle</button> · <button type="button" class="linkbtn" id="fFilNone">Keine</button></span></p>
     <div class="fpick" id="fFils" role="group" aria-label="Erlaubte Filamentfarben"></div>
     <p class="fpick-sum" id="fFilSum"></p>
   </div>
@@ -477,6 +482,7 @@ details.fgroup .list{margin-top:8px}
     <input type="text" id="gMat" maxlength="20" list="matList" placeholder="PLA" autocomplete="off">
     <datalist id="matList"></datalist>
   </label>
+  <p class="hint">Tipp: Filamentart „Lack“ – jede Lack-Farbe kostet im Shop <b>+1,50 €</b> pro Stück.</p>
   <label class="switch" style="margin-bottom:8px"><input type="checkbox" id="gTrans"> Transluzent (durchscheinend)</label>
   <label class="switch"><input type="checkbox" id="gAvail" checked> Vorrätig – im Shop wählbar</label>
 
@@ -595,8 +601,8 @@ details.fgroup .list{margin-top:8px}
           (p.note ? '<span class="tag" style="color:var(--pla);border-color:var(--pla-line, rgba(255,122,47,.32));background:none">✎ Kundentext</span>' : '') +
           (p.logo ? '<span class="tag" style="color:var(--filament);border-color:var(--filament-line);background:none">◆ Firmenlogo</span>' : '') +
           (p.linkUrl ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">📄 Link</span>' : '') +
-          ((p.materials || []).length || (p.filaments || []).length ? '<span class="tag" style="color:var(--filament);border-color:var(--filament-line);background:none">◐ ' +
-            escH([(p.materials || []).join(', '), (p.filaments || []).length ? p.filaments.length + ' Farben' : ''].filter(Boolean).join(' · ')) + '</span>' : '') +
+          ((p.materials || []).length || (p.noFilaments || []).length ? '<span class="tag" style="color:var(--filament);border-color:var(--filament-line);background:none">◐ ' +
+            escH([(p.materials || []).join(', '), (p.noFilaments || []).length ? p.noFilaments.length + ' abgewählt' : ''].filter(Boolean).join(' · ')) + '</span>' : '') +
           ((p.options || []).length ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">☰ ' + p.options.map(function(o){ return o.name; }).join(', ').replace(/[<>&]/g, '') + '</span>' : '') +
           (!p.image && p.icon ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">noch kein Foto</span>' : '') +
         '</div></div>' +
@@ -697,9 +703,12 @@ details.fgroup .list{margin-top:8px}
     renderOpts(Array.isArray(p.options) ? p.options : []);
     partNames = Array.isArray(p.parts) && p.parts.length ? p.parts.slice(0, MAX_COLORS) : [''];
     renderParts();
-    selFils = (Array.isArray(p.filaments) ? p.filaments : []).filter(function(id){
-      return !filaments.length || filaments.some(function(f){ return f.id === id; });   // gelöschte Filamente ignorieren
+    // abgewählte Farben; eine alte Erlaubt-Liste wird hier gleich umgerechnet
+    offFils = (Array.isArray(p.noFilaments) ? p.noFilaments : []).slice();
+    if(Array.isArray(p.filaments) && p.filaments.length) filaments.forEach(function(f){
+      if(p.filaments.indexOf(f.id) < 0 && offFils.indexOf(f.id) < 0) offFils.push(f.id);
     });
+    offFils = offFils.filter(function(id){ return filaments.some(function(f){ return f.id === id; }); });   // gelöschte ignorieren
     selMats = Array.isArray(p.materials) ? p.materials.slice() : [];
     renderFilPick();
     $('deleteBtn').hidden = i < 0;
@@ -760,11 +769,10 @@ details.fgroup .list{margin-top:8px}
     h.textContent = 'Namen sind optional – sie helfen beim Auswählen im Warenkorb.';
     box.appendChild(h);
   }
-  /* ---------- Wählbare Filamente (leer = alle vorrätigen) ---------- */
-  var selFils = [], selMats = [];
-  function filAllowed(f){
-    return (!selFils.length || selFils.indexOf(f.id) >= 0) && (!selMats.length || selMats.indexOf(matOf(f)) >= 0);
-  }
+  /* ---------- Wählbare Filamente: alle, außer den abgewählten (neue sind automatisch dabei) ---------- */
+  var offFils = [], selMats = [];
+  function matOk(f){ return !selMats.length || selMats.indexOf(matOf(f)) >= 0; }
+  function filAllowed(f){ return offFils.indexOf(f.id) < 0 && matOk(f); }
   function renderFilPick(){
     var mats = allMats();
     selMats.forEach(function(m){ if(mats.indexOf(m) < 0) mats.push(m); });   // gespeicherte, aber gerade keine Farbe davon
@@ -775,13 +783,13 @@ details.fgroup .list{margin-top:8px}
     $('fFils').innerHTML = filaments.length ? filaments.map(function(f){
       var hidden = selMats.length && selMats.indexOf(matOf(f)) < 0;   // Art abgewählt → Farbe ausblenden
       if(hidden) return '';
-      return '<button type="button" data-fil="' + escH(f.id) + '" aria-pressed="' + (selFils.indexOf(f.id) >= 0) + '"' +
+      return '<button type="button" data-fil="' + escH(f.id) + '" aria-pressed="' + (offFils.indexOf(f.id) < 0) + '"' +
         (f.available === false ? ' class="na" title="gerade nicht vorrätig"' : '') + '>' + swatchHTML(f) + escH(f.name) +
         (mats.length > 1 ? ' <small style="opacity:.7">' + escH(matOf(f)) + '</small>' : '') + '</button>';
     }).join('') : '<span class="hint">Noch keine Filamente angelegt (Reiter „Filamente“).</span>';
     var ok = filaments.filter(function(f){ return f.available !== false && filAllowed(f); });
-    $('fFilSum').innerHTML = !selFils.length && !selMats.length
-      ? 'Nichts ausgewählt → <b>alle vorrätigen Filamente</b> sind wählbar (' + filaments.filter(function(f){ return f.available !== false; }).length + ').'
+    $('fFilSum').innerHTML = !offFils.length && !selMats.length
+      ? 'Alle ausgewählt → <b>alle vorrätigen Filamente</b> sind wählbar, neue kommen automatisch dazu (' + filaments.filter(function(f){ return f.available !== false; }).length + ').'
       : (ok.length ? 'Im Shop wählbar: <b>' + ok.length + (ok.length === 1 ? ' Filament' : ' Filamente') + '</b> – ' + ok.map(function(f){ return escH(f.name); }).join(', ')
                    : '<span style="color:var(--danger)">Achtung: Keine der gewählten Farben ist gerade vorrätig – im Shop gibt es dann keine Farbauswahl.</span>');
   }
@@ -789,14 +797,20 @@ details.fgroup .list{margin-top:8px}
     var b = e.target.closest('button[data-mat]'); if(!b) return;
     var m = b.dataset.mat, i = selMats.indexOf(m);
     if(i >= 0) selMats.splice(i, 1); else selMats.push(m);
-    // Farben, die nicht mehr zur Art passen, abwählen
-    selFils = selFils.filter(function(id){ var f = filaments.find(function(x){ return x.id === id; }); return !f || !selMats.length || selMats.indexOf(matOf(f)) >= 0; });
     renderFilPick();
   });
   $('fFils').addEventListener('click', function(e){
     var b = e.target.closest('button[data-fil]'); if(!b) return;
-    var id = b.dataset.fil, i = selFils.indexOf(id);
-    if(i >= 0) selFils.splice(i, 1); else selFils.push(id);
+    var id = b.dataset.fil, i = offFils.indexOf(id);
+    if(i >= 0) offFils.splice(i, 1); else offFils.push(id);
+    renderFilPick();
+  });
+  $('fFilAll').addEventListener('click', function(){
+    offFils = offFils.filter(function(id){ var f = filaments.find(function(x){ return x.id === id; }); return f && !matOk(f); });
+    renderFilPick();
+  });
+  $('fFilNone').addEventListener('click', function(){
+    filaments.forEach(function(f){ if(matOk(f) && offFils.indexOf(f.id) < 0) offFils.push(f.id); });
     renderFilPick();
   });
 
@@ -936,7 +950,7 @@ details.fgroup .list{margin-top:8px}
         note: $('fNote').checked,
         noteLabel: $('fNote').checked ? ($('fNoteLabel').value.trim() || 'Dein Text') : '',
         options: readOpts(),
-        filaments: selFils.slice(),
+        filaments: [], noFilaments: offFils.slice(),
         materials: selMats.slice(),
         logo: $('fLogo').checked,
         linkLabel: $('fLinkUrl').value.trim() ? ($('fLinkLabel').value.trim() || 'Anleitung (PDF)') : '',
@@ -1299,7 +1313,7 @@ details.fgroup .list{margin-top:8px}
       el.innerHTML =
         '<div class="thumb">' + swatchHTML(f) + '</div>' +
         '<div class="meta"><b></b><div class="sub"><span class="mono">' + f.hex + '</span>' +
-          '<span class="tag" style="color:var(--ink);border-color:var(--line-strong);background:var(--plate-3)">' + escH(matOf(f)) + '</span>' +
+          '<span class="tag" style="color:var(--ink);border-color:var(--line-strong);background:var(--plate-3)">' + escH(matOf(f)) + (/^lack/i.test(matOf(f)) ? ' · +1,50 €' : '') + '</span>' +
           (f.translucent ? '<span class="tag" style="color:var(--data);border-color:var(--line-strong);background:none">transluzent</span>' : '') +
           (f.available === false ? '<span class="tag">nicht vorrätig</span>' : '') +
         '</div></div>' +
@@ -1370,7 +1384,7 @@ details.fgroup .list{margin-top:8px}
     $('gColor').value = f.hex.toLowerCase();
     $('gTrans').checked = !!f.translucent;
     $('gMat').value = i >= 0 ? matOf(f) : '';
-    $('matList').innerHTML = allMats().concat(['PLA','PLA Matt','PLA Silk','PETG','TPU','ABS','ASA'])
+    $('matList').innerHTML = allMats().concat(['PLA','PLA Matt','PLA Silk','PETG','TPU','ABS','ASA','Lack'])
       .filter(function(m, k, a){ return a.indexOf(m) === k; })
       .map(function(m){ return '<option value="' + escH(m) + '">'; }).join('');
     $('gAvail').checked = f.available !== false;
