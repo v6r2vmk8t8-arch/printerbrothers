@@ -30,7 +30,8 @@ OUT = ROOT / "3d-druck/schalter-hebel"
 # ---------------------------------------------------------------- Maße
 # Proportionen wie der Block-Hebel im Spiel (1 Pixel = PX mm): Sockel 6 × 8 × 3 Pixel, Stab 2 × 2 × 10 Pixel, 45° gekippt.
 PX = 16.5                      # Sockel deckt den ganzen Efapel-Rahmen (87 × 87 mm) ab; Wippe 57 × 57 mm
-FRAME = 87.0                   # Schalterrahmen außen
+FRAME = 85.0                   # Schalterrahmen außen (nachgemessen 85 × 85 mm)
+HOLE_CLEAR = 0.8               # Luft je Seite im Loch der Montageplatte (gedruckte Löcher werden ca. 0.2 mm kleiner)
 FRAME_T = 10.0                 # Rahmen steht so weit von der Wand ab (Vorderseite Rahmen = z 0)
 WALL = 2.4                     # Wandstärke Sockel
 BASE_W, BASE_H = 6 * PX, 8 * PX                     # 99 × 132 mm
@@ -114,7 +115,7 @@ def plate(klebe=False):
     klebe=False: 2 Senkschrauben oben/unten. klebe=True: versenkte Taschen für Montageband oben/unten."""
     hx, hy = BASE_W / 2 - WALL - 0.25, BASE_H / 2 - WALL - 0.25     # passt mit 0.25 mm Spiel in den Sockel
     z0, t = -FRAME_T, 3.0
-    f = FRAME / 2 + 1.0
+    f = FRAME / 2 + HOLE_CLEAR
     p = box(-hx, hx, -hy, hy, z0, z0 + t) - box(-f, f, -f, f, z0 - 1, z0 + t + 1)
     # Seitenleisten (stehen hoch, tragen die Rastnase außen)
     for s in (-1, 1):
@@ -221,7 +222,7 @@ def main():
     ap = axle().translate((0, 0, -ZA)).rotate((180, 0, 0)); ap = ap.translate((0, 0, -ap.bounding_box()[2]))  # Exzenter nach oben
     pl = plate(); pl = pl.translate((0, 0, -pl.bounding_box()[2]))
     pk = plate(klebe=True); pk = pk.translate((0, 0, -pk.bounding_box()[2]))
-    yk = BASE_H / 2 - WALL - 0.25 - 0.8 - (FRAME / 2 + 1.0)
+    yk = BASE_H / 2 - WALL - 0.25 - 0.8 - (FRAME / 2 + HOLE_CLEAR + 1.0)
     print(f"  Klebe-Version: 2 Taschen je {BASE_W - 2 * WALL - 0.5 - 8:.0f} × {yk:.1f} mm, {TAPE_T} mm tief")
     parts = {"montageplatte": pl, "montageplatte-klebe": pk, "sockel": bp, "stab": sp, "achse": ap}
     for h in ROCKER_H:
