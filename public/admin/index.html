@@ -353,7 +353,7 @@ details.fgroup .list{margin-top:8px}
           <p id="filesInfo">Lädt …</p>
         </div>
       </div>
-      <input type="search" id="fileSearch" class="file-search" placeholder="Suchen, z. B. kaffee, ring, 17mm …" aria-label="Dateien durchsuchen">
+      <input type="search" id="fileSearch" class="file-search" autocomplete="off" placeholder="Suchen, z. B. kaffee, ring, 17mm …" aria-label="Dateien durchsuchen">
       <div class="ftypes" id="fileTypes" role="group" aria-label="Nach Dateityp filtern"></div>
       <div class="files-head">
         <h2 class="files-h">Eigene Dateien</h2>
@@ -1154,6 +1154,7 @@ details.fgroup .list{margin-top:8px}
   }
   function extOf(name){ var m = /\.([a-z0-9]+)$/i.exec(name || ''); var e = m ? m[1].toLowerCase() : ''; return e === 'jpeg' ? 'jpg' : e; }
   var fileExt = '';   // aktiver Typ-Filter ('' = alle)
+  var openFolders = []; // von euch aufgeklappte Ordner – nur bis zum Neuladen, danach ist wieder alles zu
   try { fileExt = localStorage.getItem('pbFileExt') || ''; } catch(e){}
   function renderTypes(){
     var count = {};
@@ -1197,7 +1198,6 @@ details.fgroup .list{margin-top:8px}
     var hit = function(t, name){ return (!s || t.toLowerCase().indexOf(s) >= 0) && (!fileExt || extOf(name) === fileExt); };
     var own = files.eigene.filter(function(f){ return hit(f.name, f.name); });
     var cl = files.claude.filter(function(f){ return hit(f.pfad, f.name); });
-    if(fileExt) s = s || ' ';   // gefiltert → Gruppen aufklappen, Trefferzahlen zeigen
     $('filesInfo').textContent = files.eigene.length + ' eigene · ' + files.claude.length + ' von Claude' +
       (fileExt ? ' – gefiltert: ' + (own.length + cl.length) + ' × ' + fileExt.toUpperCase() : '');
     // Eigene Dateien: zugeklappt (bleibt offen, wenn ihr sie geöffnet habt); bei Suche automatisch offen
@@ -1216,7 +1216,14 @@ details.fgroup .list{margin-top:8px}
     var keys = Object.keys(groups).sort(function(a, b){ return a === 'Hauptordner' ? -1 : b === 'Hauptordner' ? 1 : a.localeCompare(b, 'de'); });
     if(!keys.length) cbox.innerHTML = '<div class="empty">' + (s ? 'Nichts gefunden.' : 'Noch keine Dateien abgeglichen.') + '</div>';
     keys.forEach(function(g){
-      var d = document.createElement('details'); d.className = 'fgroup'; if(s || keys.length === 1) d.open = true;
+      var d = document.createElement('details'); d.className = 'fgroup';
+      // Ordner bleiben so, wie ihr sie auf-/zugeklappt habt; nur beim Suchen gehen alle Treffer-Ordner auf
+      d.open = !!s || openFolders.indexOf(g) >= 0;
+      d.addEventListener('toggle', function(){
+        if(s) return;   // Aufklappen durch die Suche nicht merken
+        var i = openFolders.indexOf(g);
+        if(d.open && i < 0) openFolders.push(g); else if(!d.open && i >= 0) openFolders.splice(i, 1);
+      });
       d.innerHTML = '<summary></summary><div class="list"></div>';
       d.querySelector('summary').textContent = g + ' (' + groups[g].length + ')';
       groups[g].forEach(function(f){ d.querySelector('.list').appendChild(fileRow(f, 'claude', f.name)); });
